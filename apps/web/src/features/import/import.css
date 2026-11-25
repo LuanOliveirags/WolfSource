@@ -231,6 +231,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary)
 .import-footer .btn-secondary { flex-shrink: 0; height: 50px; }
 .import-footer .btn-primary { position: static; margin-top: 0; box-shadow: var(--shadow-md); }
 .import-confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.import-dup-badge.is-internal { color: var(--info); background: var(--info-bg); }
 
 /* ═══════════════ DESKTOP ═══════════════ */
 @media (min-width: 760px) {

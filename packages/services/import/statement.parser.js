@@ -3,7 +3,7 @@
 // OFX/QFX, CSV/TXT e planilhas (linhas já extraídas pelo SheetJS).
 // Sem DOM e sem rede: recebe texto/linhas, devolve lançamentos
 // normalizados { date: 'YYYY-MM-DD', description, amount (>0), type, ref }.
-// PDF e imagens são lidos pelo backend (statement.ai.js).
+// PDF e imagens: statement.local.js extrai o texto e usa parseStatementLines.
 // ============================================================
 
 // ───────────────────────── Texto / encoding ─────────────────────────
@@ -252,14 +252,14 @@ export function parseTableRows(rows, sourceLabel = 'CSV') {
 const CATEGORY_RULES = [
   ['assinaturas',   /netflix|spotify|prime video|amazon prime|disney|hbo|\bmax\b|youtube|apple\.com|icloud|deezer|globoplay|paramount|google (one|storage|play)|chatgpt|openai|claude/],
   ['academia',      /academia|smart ?fit|bluefit|gympass|wellhub|crossfit|bodytech/],
-  ['alimentacao',   /mercado|supermerc|padaria|ifood|restaurante|lanchonete|acougue|hortifruti|assai|atacad|carrefour|pao de acucar|\bextra\b|burger|pizza|mcdonald|subway|rappi|ze delivery|cafe|sorvete|doceria|feira|emporio|bar e |churrasc|ayumi|westboi/],
+  ['alimentacao',   /mercado|supermerc|padaria|ifood|restaurante|lanchonete|acougue|hortifruti|assai|atacad|carrefour|pao de acucar|\bextra\b|burger|pizza|mcdonald|subway|rappi|ze delivery|cafe|sorvete|doceria|feira|emporio|bar e |churrasc|ayumi|westboi|\bpaes\b|confeitaria|salgados|bananas|sacolao|mercearia|sendas|sancream|bebidas|lanches|marmit|quitanda/],
   ['transporte',    /\buber\b|\b99\b|99app|posto|combust|ipiranga|shell|petrobras|\bbr mania|estaciona|pedagio|sem parar|conectcar|metro|cptm|onibus|bilhete unico|top transporte|cabify/],
   ['saude',         /farmacia|drogaria|droga ?raia|pacheco|drogasil|pague menos|hospital|clinica|laborat|medic|odonto|unimed|amil|hapvida|bradesco saude|sulamerica/],
   ['educacao',      /escola|faculdade|universidade|curso|udemy|alura|livraria|colegio|mensalidade escolar|perua escolar/],
-  ['moradia',       /aluguel|condominio|iptu|imobiliaria|quinto andar|financiamento habitacional/],
-  ['utilidades',    /enel|sabesp|copasa|cemig|light|cpfl|energia|\bluz\b|agua|comgas|\bgas\b|vivo|claro|\btim\b|\boi\b|internet|telefon|net servicos/],
+  ['moradia',       /aluguel|condominio|iptu|imobiliaria|quinto andar|habitacao|habitacional/],
+  ['utilidades',    /enel|sabesp|copasa|cemig|light|cpfl|energia|\bluz\b|agua|comgas|\bgas\b|vivo|claro|\btim\b|\boi\b|(?<!\/)internet(?!\/)|telefon|net servicos/],
   ['beleza',        /salao|cabelei|barbearia|estetica|boticario|natura|sephora|manicure/],
-  ['pets',          /\bpet|petz|cobasi|veterin|racao/],
+  ['pets',          /\bpet\b|petz|petlove|cobasi|veterin|\bracao\b/],
   ['lazer',         /cinema|ingresso|steam|playstation|xbox|nintendo|teatro|show|viagem|hotel|airbnb|decolar|booking|parque/],
   ['investimentos', /aplicacao|resgate|\bcdb\b|tesouro|invest|poupanca|corretora|\bxp\b|rico|nuinvest/]
 ];
@@ -267,9 +267,19 @@ const CATEGORY_RULES = [
 /** Sugere a categoria do app pelo texto do lançamento. */
 export function suggestCategory(description, type) {
   const n = normalizeText(description);
-  if (type === 'entrada' && /resgate|rendimento/.test(n)) return 'investimentos';
+  if (type === 'entrada' && /resgate|rendimento|remunera/.test(n)) return 'investimentos';
   for (const [category, re] of CATEGORY_RULES) if (re.test(n)) return category;
   return 'outros';
+}
+
+/**
+ * Transferência entre contas do próprio titular (poupança, aplicação/resgate):
+ * não é receita nem despesa da família — vem desmarcada na revisão.
+ */
+export function isInternalTransfer(description) {
+  const n = normalizeText(description);
+  if (/remunera|rendimento|juros/.test(n)) return false;
+  return /conta poupanca|resg(ate)? poup|resgate (de )?aplic|aplicacao (em|cdb|poup|automatica)|entre contas|mesma titularidade|transf(erencia)? (para|de) (conta )?poup/.test(n);
 }
 
 /** Forma de pagamento provável: Pix quando o texto diz, senão cartão. */
@@ -318,4 +328,146 @@ export function detectFileKind(file) {
   if (/\.(jpe?g|png|webp|gif)$/.test(name) || /^image\/(jpeg|png|webp|gif)$/.test(type)) return 'image';
   if (/\.(heic|heif)$/.test(name) || /heic|heif/.test(type)) return 'heic';
   return 'unknown';
+}
+
+// ───────────────────────── Texto livre (PDF / OCR) ─────────────────────────
+
+const MONTH_WORD = String.raw`(?:jan|fev|feb|mar|abr|apr|mai|may|jun|jul|ago|aug|set|sep|out|oct|nov|dez|dec)[a-z]*\.?`;
+const LINE_DATE = new RegExp(String.raw`^\s*(\d{1,2}[/.-]\d{1,2}(?:[/.-]\d{2,4})?|\d{1,2}\s*(?:de\s+)?${MONTH_WORD}(?:\s*(?:de\s+)?\d{2,4})?)(?![\d,])`, 'i');
+// Valor em formato BR (vírgula decimal). Sinal só conta colado no número ("-318,40",
+// "-R$ 30,00"): um "-" solto antes é coluna vazia (ex.: "Nº Documento" do Santander).
+const LINE_AMOUNT = /(?<![\d/,.])([-+−])?(?:R\$\s?)?(\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2})(?!\d)(\s?[CD](?![a-zà-ú])|-(?!\d))?/gi;
+const SKIP_LINE = /\bsaldo\b|^total|\btotal (da fatura|geral|de|do)\b|limite (total|dispon)|^resumo|p[aá]gina:? ?\d|^data\b.*\b(hist|descri|lan[cç])/i;
+// Cabeçalho da tabela de movimentação: a leitura começa aqui (pula resumos do topo)
+const MOVEMENT_HEADER = /^data\b.*\b(descri|hist|lan[cç])[\s\S]*\b(movimento|valor|cr[eé]dito|d[eé]bito)/i;
+// Títulos de seções que só repetem ou detalham o que já foi lido: a leitura para aqui
+const END_SECTION = /^(saldos? por per[ií]odo|compras com cart[aã]o de d[eé]bito|comprovantes? de pagamento|transfer[eê]ncias entre contas|poupan[cç]a|investimentos|renda fixa|pacote de servi[cç]os|[ií]ndices econ[oô]micos|lan[cç]amentos futuros|agendamentos)\b/i;
+const INCOME_HINT = /receb|cr[eé]dito|dep[oó]sito|sal[aá]rio|estorno|rendimento|remunera|resgate|\bresg\b|devolu|reembolso|cashback/i;
+const CARD_PAYMENT = /pagamento (recebido|efetuado|da fatura|fatura)|pgto\.? ?fatura|pag fatura/i;
+const MONTH_YEAR = /\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zç]*\.?\s*(?:\/|de)?\s*(20\d{2})\b/gi;
+
+/** Marcador de quebra de página entre as linhas de um PDF/OCR de várias páginas. */
+export const PAGE_BREAK = '\f';
+
+/**
+ * Cabeçalhos e rodapés: linhas sem valor que aparecem nas bordas (4 primeiras/últimas
+ * linhas) de várias páginas. Nomes repetidos no meio das páginas não entram.
+ */
+function pageBoilerplate(lines) {
+  const pages = [[]];
+  for (const l of lines) (l === PAGE_BREAK ? pages.push([]) : pages[pages.length - 1].push(l));
+  const found = new Set();
+  if (pages.length < 2) return found;
+  const count = new Map();
+  for (const p of pages) new Set([...p.slice(0, 4), ...p.slice(-4)]).forEach(l => count.set(l, (count.get(l) || 0) + 1));
+  const min = Math.max(2, Math.ceil(pages.length * 0.4));
+  for (const [line, n] of count) if (n >= min && !/\d,\d{2}/.test(line)) found.add(line);
+  return found;
+}
+
+/** Ano mais provável do documento: "outubro/2026" pesa mais que datas soltas de rodapé. */
+function documentYear(text) {
+  const score = new Map();
+  for (const m of text.matchAll(MONTH_YEAR)) score.set(m[2], (score.get(m[2]) || 0) + 5);
+  for (const m of text.matchAll(/\b\d{1,2}\/\d{1,2}\/(20\d{2})\b/g)) score.set(m[1], (score.get(m[1]) || 0) + 1);
+  if (!score.size) return new Date().getFullYear();
+  return +[...score.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
+
+/**
+ * Lê lançamentos de linhas de texto (PDF com texto ou OCR de foto).
+ * - Começa no cabeçalho da tabela de movimentação (quando houver) e para nas
+ *   seções que repetem lançamentos (comprovantes, poupança, saldos por período…).
+ * - Linha com data + valor vira lançamento; sem data, herda a última data vista.
+ * - Linha sem valor logo após um lançamento completa a descrição (favorecido do Pix).
+ * - Sinal: marcador explícito (-, C/D) ou a convenção do documento: se o extrato marca
+ *   os débitos, valor sem marca é crédito. Sem marcas no arquivo, deduz pelo texto.
+ */
+export function parseStatementLines(lines, sourceLabel = 'PDF', { ocr = false } = {}) {
+  const clean = lines
+    .map(l => (l === PAGE_BREAK ? l : String(l).replace(/\s+/g, ' ').trim()))
+    // OCR costuma perder a barra da data: "1310 PIX ENVIADO" → "13/10 PIX ENVIADO"
+    .map(l => (ocr ? l.replace(/^(0[1-9]|[12]\d|3[01])(0[1-9]|1[0-2])\s+(?=\D)/, '$1/$2 ') : l))
+    .filter(Boolean);
+  const boilerplate = pageBoilerplate(clean);
+  const text = clean.filter(l => l !== PAGE_BREAK).join('\n');
+
+  const cardSignals = [/fatura/i, /vencimento/i, /pagamento m[ií]nimo/i, /limite (de cr[eé]dito|total|dispon)/i, /cart[aã]o de cr[eé]dito/i]
+    .filter(re => re.test(text)).length;
+  const isCardBill = cardSignals >= 2;
+  const year = documentYear(text);
+  // O extrato marca débitos? ("65,59-", "318,40 D" ou "-318,40" colado no número)
+  const marksDebits = (text.match(/\d,\d{2}(-|\s?D\b)(?!\d)/g) || []).length >= 2 ||
+    (text.match(/(?:^|\s)[-−](R\$\s?)?\d[\d.]*,\d{2}/gm) || []).length >= 2;
+
+  const headerAt = clean.findIndex(l => MOVEMENT_HEADER.test(l));
+  const start = headerAt >= 0 ? headerAt + 1 : 0;
+
+  const items = [];
+  let lastDate = null;
+  let lastWasItem = false;
+  let inferredSigns = 0;
+  let skippedPayments = 0;
+
+  for (let i = start; i < clean.length; i++) {
+    const line = clean[i];
+    if (line === PAGE_BREAK || boilerplate.has(line)) { lastWasItem = false; continue; }
+    const amounts = [...line.matchAll(LINE_AMOUNT)];
+    if (!amounts.length && END_SECTION.test(line)) break;
+
+    const dateMatch = line.match(LINE_DATE);
+    const date = dateMatch ? parseDate(dateMatch[1], year) : null;
+    if (date) lastDate = date;
+    if (SKIP_LINE.test(line)) { lastWasItem = false; continue; }
+
+    if (!amounts.length) {
+      // Continuação da descrição (ex.: "PIX ENVIADO" ↵ "FAZENDINHA DOS PAES LTDA")
+      if (lastWasItem && !date && line.length <= 60) {
+        const prev = items[items.length - 1];
+        prev.description = `${prev.description} ${line}`.trim();
+        lastWasItem = false;
+      }
+      continue;
+    }
+    if (!(date || lastDate)) continue;
+
+    // Com 2+ valores, o primeiro é o lançamento e o último costuma ser o saldo
+    const m = amounts[0];
+    const value = parseAmount(m[2]);
+    if (!value) continue;
+    const prefix = (m[1] || '').replace('−', '-');
+    const suffix = (m[3] || '').trim().toUpperCase();
+
+    let description = line;
+    if (dateMatch && date) description = description.slice(dateMatch[0].length);
+    for (const a of amounts) description = description.replace(a[0], ' ');
+    description = description
+      .replace(/R\$/g, ' ')
+      .replace(/\s\d{5,}(?=\s|$)/g, ' ')          // nº de documento
+      .replace(/\s+/g, ' ')
+      .replace(/^[\s\-–|:]+|[\s\-–|:]+$/g, '')
+      .trim();
+
+    if (isCardBill && CARD_PAYMENT.test(description)) { skippedPayments++; lastWasItem = false; continue; }
+
+    let type;
+    if (prefix === '-' || suffix === 'D' || suffix === '-') type = isCardBill ? 'entrada' : 'saida';
+    else if (prefix === '+' || suffix === 'C') type = 'entrada';
+    else if (isCardBill) type = 'saida';
+    // No OCR o "-" final dos débitos some com frequência: a convenção do documento não é confiável
+    else if (marksDebits && !ocr) type = 'entrada';
+    else {
+      inferredSigns++;
+      type = INCOME_HINT.test(description) ? 'entrada' : 'saida';
+    }
+    items.push({ date: date || lastDate, description: description || 'Lançamento', amount: value, type, ref: null });
+    lastWasItem = true;
+  }
+
+  const warnings = [];
+  if (isCardBill) warnings.push('Lido como fatura de cartão: compras entram como saídas.');
+  if (skippedPayments) warnings.push(`${skippedPayments} pagamento(s) da fatura anterior foram ignorados (não são receita).`);
+  if (inferredSigns) warnings.push(`O arquivo não indica entrada/saída em ${inferredSigns} linha(s); deduzi pelo texto. Confira na lista.`);
+  if (!items.length) warnings.push('Não encontrei linhas com data e valor neste arquivo.');
+  return { items, source: sourceLabel, warnings };
 }
