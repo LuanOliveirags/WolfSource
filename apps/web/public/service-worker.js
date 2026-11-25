@@ -33,7 +33,7 @@ try {
 }
 // ===== FIM FIREBASE MESSAGING =====
 
-const CACHE_NAME = 'wolfsource-v25';
+const CACHE_NAME = 'wolfsource-v26';
 const URLS_TO_CACHE = [
   './',
   './index.html',
@@ -47,6 +47,7 @@ const URLS_TO_CACHE = [
   './apps/web/src/features/chores/chores.html',
   './apps/web/src/features/shopping/shopping.html',
   './apps/web/src/features/chat/chat.html',
+  './apps/web/src/features/import/import.html',
   // CSS — Global (styles)
   './apps/web/src/styles/base.css',
   './apps/web/src/styles/animations.css',
@@ -66,6 +67,7 @@ const URLS_TO_CACHE = [
   './apps/web/src/features/chores/chores.css',
   './apps/web/src/features/shopping/shopping.css',
   './apps/web/src/features/chat/chat.css',
+  './apps/web/src/features/import/import.css',
   // JS — App Core & Entry
   './apps/web/src/app/bootstrap.js',
   './apps/web/src/app/router.js',
@@ -89,6 +91,9 @@ const URLS_TO_CACHE = [
   './apps/web/src/features/chores/chores.js',
   './apps/web/src/features/shopping/shopping.js',
   './apps/web/src/features/chat/chat.js',
+  './apps/web/src/features/import/import.js',
+  './packages/services/import/statement.parser.js',
+  './packages/services/import/statement.ai.js',
   // JS — Packages shared
   './packages/utils/helpers.js',
   './packages/ui/navigation/navigation.js',

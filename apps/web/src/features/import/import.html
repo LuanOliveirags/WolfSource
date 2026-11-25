@@ -1,0 +1,74 @@
+<!-- ====== IMPORTAR EXTRATO ====== --> <!-- Modal: arquivo → leitura → revisão → gravação -->
+<div id="importModal" class="modal import-modal">
+    <div class="modal-content import-content">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-file-import"></i> Importar extrato</h3>
+            <button type="button" class="modal-close-btn" id="importCloseBtn" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <!-- Passo 1: escolher arquivo -->
+        <div class="import-step" id="importStepUpload">
+            <label class="import-drop" id="importDrop" for="importFileInput">
+                <span class="import-drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                <span class="import-drop-title">Arraste o extrato aqui ou toque para escolher</span>
+                <span class="import-drop-sub">OFX, CSV, Excel, PDF ou foto do extrato</span>
+            </label>
+            <input type="file" id="importFileInput" accept=".ofx,.qfx,.csv,.txt,.tsv,.xlsx,.xls,.ods,.pdf,application/pdf,image/*" hidden>
+            <input type="file" id="importCameraInput" accept="image/*" capture="environment" hidden>
+            <button type="button" class="btn-secondary import-camera-btn" id="importCameraBtn">
+                <i class="fa-solid fa-camera"></i> Fotografar extrato
+            </button>
+
+            <ul class="import-formats">
+                <li><span class="import-badge is-local"><i class="fa-solid fa-lock"></i> No aparelho</span> OFX, CSV e Excel são lidos aqui mesmo, sem enviar seus dados.</li>
+                <li><span class="import-badge is-ai"><i class="fa-solid fa-wand-magic-sparkles"></i> Com IA</span> PDF e fotos são lidos por IA no servidor do WolfSource.</li>
+            </ul>
+            <p class="import-tip"><i class="fa-regular fa-lightbulb"></i> No app do banco, procure "Exportar extrato" em <strong>OFX</strong>: é o formato mais preciso.</p>
+        </div>
+
+        <!-- Passo 2: lendo -->
+        <div class="import-step" id="importStepLoading" hidden>
+            <div class="import-loading">
+                <span class="loading-spinner loading-spinner-lg"></span>
+                <p class="import-loading-title" id="importLoadingText">Lendo extrato…</p>
+                <p class="import-loading-sub" id="importLoadingSub"></p>
+            </div>
+        </div>
+
+        <!-- Passo 3: revisar -->
+        <div class="import-step" id="importStepReview" hidden>
+            <div class="import-summary" id="importSummary"></div>
+            <div class="import-warnings" id="importWarnings"></div>
+
+            <div class="import-controls">
+                <label class="import-check-all">
+                    <input type="checkbox" id="importSelectAll" checked> Selecionar todos
+                </label>
+                <div class="import-control">
+                    <label for="importResponsible">Responsável</label>
+                    <select id="importResponsible"></select>
+                </div>
+                <div class="import-control">
+                    <label for="importPayment">Pagamento</label>
+                    <select id="importPayment">
+                        <option value="auto">Automático</option>
+                        <option value="cartao">Cartão</option>
+                        <option value="pix">Pix</option>
+                        <option value="dinheiro">Dinheiro</option>
+                        <option value="vr">VR/VA</option>
+                    </select>
+                </div>
+                <button type="button" class="btn-secondary import-invert-btn" id="importInvertBtn" title="Troca entradas por saídas em todas as linhas">
+                    <i class="fa-solid fa-right-left"></i> Inverter entradas/saídas
+                </button>
+            </div>
+
+            <div class="import-list" id="importList"></div>
+
+            <div class="import-footer">
+                <button type="button" class="btn-secondary" id="importBackBtn" title="Escolher outro arquivo"><i class="fa-solid fa-arrow-left"></i> <span class="hide-sm">Outro arquivo</span></button>
+                <button type="button" class="btn-primary import-confirm-btn" id="importConfirmBtn"><i class="fa-solid fa-check"></i> Importar</button>
+            </div>
+        </div>
+    </div>
+</div>

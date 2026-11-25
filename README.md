@@ -10,6 +10,7 @@ Aplicação web e Android para gestão financeira familiar. Desenvolvida como PW
 - **Isolamento Multiusuário**: Dados isolados por família via Firestore Security Rules + claim `familyId` no JWT
 - **Dashboard Interativo**: KPIs, gráficos Chart.js e análise financeira mensal
 - **Controle de Transações**: Registro completo de entradas e saídas com categorias
+- **Importação de Extratos**: OFX, CSV e Excel lidos no próprio aparelho; PDF e fotos lidos por IA (Claude) no backend — com revisão editável, categoria sugerida e detecção de duplicados antes de gravar
 - **Gestão de Dívidas**: Controle de vencimentos, status automático e alertas
 - **Gestão de Salários**: Acompanhamento de rendas por membro da família
 - **Lista de Compras**: Colaborativa e sincronizada em tempo real
@@ -233,6 +234,14 @@ passwordResets
 ```
 POST /api/auth/token     Valida userId+familyId → retorna Firebase custom token
 ```
+
+### Importação de extratos
+```
+POST /api/statements/parse   multipart "file" (PDF até 20 MB ou imagem até 5 MB)
+                             Header: Authorization: Bearer <Firebase ID token com claim familyId>
+                             → { bank, transactions: [{ date, description, amount, type }], warnings }
+```
+Requer `ANTHROPIC_API_KEY` no ambiente do backend (Railway → Variables). Sem ela, OFX/CSV/Excel continuam funcionando no navegador e no APK; só PDF e fotos ficam indisponíveis.
 
 ### Dados (complementar ao Firestore direto)
 ```

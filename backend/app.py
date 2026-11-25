@@ -24,6 +24,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///wol
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JSON_SORT_KEYS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # uploads de extrato (PDF até 20 MB)
 
 # Inicializar banco de dados
 db = SQLAlchemy(app)
@@ -242,6 +243,62 @@ def get_custom_token():
     except Exception as e:
         print(f'[AUTH TOKEN] Erro: {e}')
         return jsonify({'error': 'Erro interno ao gerar token'}), 500
+
+
+# ===== IMPORTAÇÃO DE EXTRATOS (PDF / FOTO via Claude) =====
+@app.route('/api/statements/parse', methods=['POST'])
+def parse_statement_route():
+    """Recebe PDF ou foto de extrato e devolve os lançamentos extraídos pela IA.
+    Exige o ID token do Firebase do usuário logado (header Authorization: Bearer)."""
+    import anthropic
+    from statement_parser import (parse_statement, StatementParseError,
+                                  SUPPORTED_MEDIA, MAX_FILE_BYTES, MAX_IMAGE_BYTES)
+
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Faça login para usar a leitura de extratos.'}), 401
+
+    firebase_app = _get_firebase_app()
+    if not firebase_app:
+        return jsonify({'error': 'Servidor sem Firebase Admin configurado.'}), 503
+    try:
+        decoded = fb_auth.verify_id_token(auth_header[7:], app=firebase_app)
+    except Exception:
+        return jsonify({'error': 'Sessão inválida ou expirada. Entre novamente.'}), 401
+    if not decoded.get('familyId'):
+        return jsonify({'error': 'Usuário sem família vinculada.'}), 403
+
+    if not os.getenv('ANTHROPIC_API_KEY'):
+        return jsonify({'error': 'Leitura de PDF e fotos ainda não configurada no servidor.'}), 503
+
+    upload = request.files.get('file')
+    if not upload:
+        return jsonify({'error': 'Nenhum arquivo enviado.'}), 400
+    media_type = (upload.mimetype or '').lower()
+    if media_type == 'image/jpg':
+        media_type = 'image/jpeg'
+    if media_type not in SUPPORTED_MEDIA:
+        return jsonify({'error': 'Envie um PDF ou uma foto (JPG, PNG ou WEBP).'}), 415
+
+    data = upload.read(MAX_FILE_BYTES + 1)
+    limit = MAX_IMAGE_BYTES if media_type.startswith('image/') else MAX_FILE_BYTES
+    if len(data) > limit:
+        return jsonify({'error': f'Arquivo maior que {limit // (1024 * 1024)} MB.'}), 413
+
+    try:
+        result = parse_statement(data, media_type)
+    except StatementParseError as e:
+        return jsonify({'error': str(e)}), 422
+    except anthropic.RateLimitError:
+        return jsonify({'error': 'Muitas leituras seguidas. Aguarde um minuto e tente de novo.'}), 429
+    except anthropic.APIStatusError as e:
+        print(f'[STATEMENTS] Erro da API ({e.status_code}): {e.message}')
+        return jsonify({'error': 'O serviço de leitura falhou. Tente novamente em instantes.'}), 502
+    except anthropic.APIConnectionError:
+        return jsonify({'error': 'Sem conexão com o serviço de leitura. Tente novamente.'}), 502
+
+    print(f"[STATEMENTS] uid={decoded.get('uid')} tipo={media_type} lançamentos={len(result.get('transactions', []))}")
+    return jsonify(result), 200
 
 
 # ===== ROTAS UTILITÁRIAS =====
