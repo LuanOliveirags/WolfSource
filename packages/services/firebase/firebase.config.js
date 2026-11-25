@@ -38,8 +38,8 @@ export const EMAILJS_CONFIG = {
 // Backend: Cloudflare Worker "wolfsource-api" (código em workers/api/, plano gratuito).
 // A mesma URL serve o site, os previews, o APK (Capacitor) e o dev local — as origens
 // permitidas ficam no CORS do Worker. Rotas: `${BACKEND_URL}/api/...`.
-// Depois do `npx wrangler deploy`, coloque aqui a URL *.workers.dev que ele mostrar.
-export const BACKEND_URL = 'https://wolfsource-api.CONFIGURE-AQUI.workers.dev';
+// Novo deploy do Worker: `npx wrangler deploy` em workers/api/.
+export const BACKEND_URL = 'https://wolfsource-api.luanoliveirags.workers.dev';
 
 // URL pública do APK para download direto.
 // Gere no Firebase Storage ou qualquer hospedagem e cole aqui.

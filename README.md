@@ -281,7 +281,7 @@ Tudo roda no aparelho (navegador ou APK), em `packages/services/import/`:
 |---|---|---|
 | Produção | https://financeiro-lopes.web.app | Push em `main` via `deploy.yml` (Firebase Hosting, canal `live`) |
 | Staging | https://financeiro-lopes--staging-9u9590k6.web.app | Push em `dev` via `deploy-staging.yml` |
-| Backend | URL `*.workers.dev` do Worker `wolfsource-api` | Manual: `npx wrangler deploy` em `workers/api/` |
+| Backend | https://wolfsource-api.luanoliveirags.workers.dev | Manual: `npx wrangler deploy` em `workers/api/` |
 
 ### Workflow de Desenvolvimento
 
