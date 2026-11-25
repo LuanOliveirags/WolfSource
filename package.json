@@ -12,7 +12,7 @@
     "icons:android": "node infra/scripts/generate-android-icons.js",
     "setup:drive": "node infra/scripts/setup-drive-auth.js",
     "release": "node infra/scripts/release.js",
-    "deploy": "node infra/scripts/copy-web.js && npx gh-pages -d www",
+    "deploy": "node infra/scripts/copy-web.js && firebase deploy --only hosting",
     "dev": "node infra/scripts/copy-web.js && npx serve www"
   },
   "dependencies": {
@@ -24,7 +24,6 @@
   "devDependencies": {
     "@capacitor/cli": "^6.0.0",
     "firebase-admin": "^13.8.0",
-    "gh-pages": "^6.3.0",
     "googleapis": "^144.0.0",
     "sharp": "^0.34.5"
   }
