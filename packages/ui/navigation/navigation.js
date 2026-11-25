@@ -119,6 +119,8 @@ function initializeTheme() {
 function toggleTheme() {
   const current = localStorage.getItem('theme') || 'light';
   applyTheme(current === 'dark' ? 'light' : 'dark');
+  // Gráficos leem as cores dos tokens CSS — redesenha com o tema novo
+  if (state.isLoggedIn) updateDashboard();
 }
 
 function applyTheme(theme) {

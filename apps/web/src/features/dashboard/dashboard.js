@@ -203,7 +203,7 @@ export function updateDashboard() {
     el('vrUsagePercent', `${vrPct.toFixed(0)}%`);
 
     // Charts & recents use VR data only
-    updateCharts(vrTransactions, []);
+    updateCharts(vrTransactions, [], vrSalaries);
     updateRecentTransactions(vrTransactions);
 
   } else {
@@ -230,9 +230,15 @@ export function updateDashboard() {
     const vrCard = document.getElementById('vrDashboardCard');
     if (vrCard) vrCard.style.display = (vrIncomeTotal > 0 || vrExpenseTotal > 0) ? '' : 'none';
 
-    updateCharts(generalTransactions, monthDebts);
+    updateCharts(generalTransactions, monthDebts, generalSalaries);
     updateRecentTransactions(monthTransactions);
   }
+
+  // Medidor do hero (quanto da receita já saiu) + mês por extenso no cabeçalho
+  const isVRMode = dashboardMode === 'vr';
+  updateBalanceMeter(isVRMode ? vrIncomeTotal : totalIncome, isVRMode ? vrExpenseTotal : totalExpenses, isVRMode);
+  const monthLabel = document.getElementById('dashMonthLabel');
+  if (monthLabel) monthLabel.textContent = new Date(year, month, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
   // Update balance label
   const balanceLabel = document.querySelector('.balance-label');
@@ -256,18 +262,69 @@ export function updateDashboard() {
   }
 }
 
+// ===== MEDIDOR DO HERO =====
+function updateBalanceMeter(income, expense, isVR) {
+  const fill = document.getElementById('balanceMeterFill');
+  const caption = document.getElementById('balanceMeterCaption');
+  if (!fill || !caption) return;
+  const pct = income > 0 ? (expense / income) * 100 : (expense > 0 ? 100 : 0);
+  fill.style.setProperty('--meter', `${Math.min(100, pct)}%`);
+  fill.classList.toggle('is-warn', pct >= 75 && pct < 100);
+  fill.classList.toggle('is-danger', pct >= 100);
+  if (income <= 0 && expense <= 0) caption.textContent = 'Sem movimentações no mês';
+  else if (income <= 0) caption.innerHTML = `<strong>${formatCurrency(expense)}</strong> em saídas, sem receita registrada`;
+  else caption.innerHTML = `<strong>${pct.toFixed(0)}%</strong> ${isVR ? 'do VR/VA' : 'da receita'} já comprometido`;
+}
+
+// ===== TEMA DOS GRÁFICOS =====
+// Lê os tokens do CSS para que os gráficos acompanhem o tema claro/escuro.
+function chartTheme() {
+  const css = getComputedStyle(document.documentElement);
+  const v = (name) => css.getPropertyValue(name).trim();
+  return {
+    text: v('--text-secondary'), muted: v('--text-muted'), grid: v('--border'), card: v('--bg-card'),
+    palette: [v('--c-navy'), v('--c-gold'), v('--c-green'), v('--c-coral'), v('--c-sky'), v('--c-plum'), v('--c-amber'), v('--c-teal'), v('--c-slate'), '#F472B6', '#84CC16', '#A16207', '#6366F1'],
+    income: v('--income'), expense: v('--expense')
+  };
+}
+
+function applyChartDefaults(theme) {
+  if (typeof Chart === 'undefined') return;
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = theme.text;
+}
+
+const isWide = () => window.matchMedia('(min-width: 640px)').matches;
+const compactBRL = (n) => n >= 1000 ? `R$ ${(n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : `R$ ${n.toLocaleString('pt-BR')}`;
+
+function legendOptions(position) {
+  return { position, labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 12, font: { size: 11, weight: 500 } } };
+}
+
+function tooltipOptions(theme) {
+  return {
+    backgroundColor: '#0E1624', titleColor: '#F3F1EC', bodyColor: '#F3F1EC', padding: 10, cornerRadius: 10,
+    titleFont: { weight: 600 }, bodyFont: { weight: 500 }, displayColors: true, boxPadding: 4, usePointStyle: true,
+    borderColor: theme.grid, borderWidth: 0
+  };
+}
+
 // ===== ATUALIZAR GRÁFICOS =====
-export function updateCharts(transactions, debts) {
+export function updateCharts(transactions, debts, salaries = []) {
   Object.values(state.charts).forEach(chart => { if (chart) chart.destroy(); });
   state.charts = {};
-  state.charts.sparkline = createBalanceSparkline(transactions);
-  state.charts.category = createCategoryChart(transactions);
-  state.charts.responsible = createResponsibleChart(transactions);
-  state.charts.debtType = createDebtTypeChart(debts);
+  const theme = chartTheme();
+  applyChartDefaults(theme);
+  state.charts.sparkline = createBalanceSparkline(transactions, salaries);
+  state.charts.category = createCategoryChart(transactions, theme);
+  state.charts.responsible = createResponsibleChart(transactions, theme);
+  state.charts.debtType = createDebtTypeChart(debts, theme);
 }
 
 // ===== SPARKLINE =====
-function createBalanceSparkline(transactions) {
+// Saldo acumulado dia a dia (transações + salários), coerente com o número do hero.
+function createBalanceSparkline(transactions, salaries = []) {
   const ctx = document.getElementById('monthlyChart');
   if (!ctx) return null;
 
@@ -284,6 +341,10 @@ function createBalanceSparkline(transactions) {
       dailyNet[d.getDate() - 1] += t.type === 'entrada' ? t.amount : -t.amount;
     }
   });
+  salaries.forEach(s => {
+    const d = new Date(s.date + 'T12:00:00');
+    if (d.getMonth() === month && d.getFullYear() === year) dailyNet[d.getDate() - 1] += s.amount;
+  });
 
   let cum = 0;
   const cumData = dailyNet.map(v => { cum += v; return cum; });
@@ -292,38 +353,76 @@ function createBalanceSparkline(transactions) {
   ctx.style.display = '';
 
   const isVR = dashboardMode === 'vr';
-  const sparkColor = isVR ? '#689F38' : '#3D6A8E';
-  const sparkBg = isVR ? 'rgba(139,195,74,0.10)' : 'rgba(61, 106, 142,0.10)';
+  const rgb = isVR ? '110,231,183' : '233,196,119';
 
   return new Chart(ctx, {
     type: 'line',
-    data: { labels, datasets: [{ data: cumData, borderColor: sparkColor, backgroundColor: sparkBg, tension: 0.42, fill: true, pointRadius: 0, borderWidth: 2.5 }] },
+    data: {
+      labels,
+      datasets: [{
+        data: cumData,
+        borderColor: `rgb(${rgb})`,
+        backgroundColor: (c) => {
+          const { ctx: g, chartArea } = c.chart;
+          if (!chartArea) return 'transparent';
+          const grad = g.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          grad.addColorStop(0, `rgba(${rgb},0.32)`);
+          grad.addColorStop(1, `rgba(${rgb},0)`);
+          return grad;
+        },
+        tension: 0.35, fill: true, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.5,
+        pointHoverBackgroundColor: `rgb(${rgb})`, pointHoverBorderColor: '#0E1624', pointHoverBorderWidth: 2
+      }]
+    },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      scales: { x: { display: false }, y: { display: false } },
-      animation: { duration: 800, easing: 'easeInOutQuart' }
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#F3F1EC', titleColor: '#0E1624', bodyColor: '#0E1624', padding: 8, cornerRadius: 8, displayColors: false,
+          callbacks: { title: (items) => `Dia ${items[0].label}`, label: (item) => formatCurrency(item.raw) }
+        }
+      },
+      scales: { x: { display: false }, y: { display: false, grace: '8%' } },
+      animation: { duration: 700, easing: 'easeOutQuart' }
     }
   });
 }
 
 // ===== GRÁFICO POR CATEGORIA =====
-function createCategoryChart(transactions) {
+function createCategoryChart(transactions, theme) {
   const ctx = document.getElementById('categoryChart');
   if (!ctx) return null;
   const categories = {};
   transactions.filter(t => t.type === 'saida').forEach(t => { categories[t.category] = (categories[t.category] || 0) + t.amount; });
   if (Object.keys(categories).length === 0) return null;
-  const COLORS = ['#3D6A8E', '#4CC9F0', '#C9A84C', '#4361EE', '#06D6A0', '#F8961E', '#4895EF', '#9CA3AF'];
+  // Maior fatia primeiro: a paleta segue a ordem de importância.
+  // Acima de 7 fatias, as menores viram "Outras" para a legenda continuar legível.
+  let entries = Object.entries(categories).sort((a, b) => b[1] - a[1]);
+  if (entries.length > 7) {
+    const rest = entries.slice(6).reduce((sum, [, v]) => sum + v, 0);
+    entries = [...entries.slice(0, 6), [null, rest]];
+  }
   return new Chart(ctx, {
     type: 'doughnut',
-    data: { labels: Object.keys(categories).map(k => CATEGORY_MAP[k]?.label || k), datasets: [{ data: Object.values(categories), backgroundColor: COLORS, borderWidth: 0 }] },
-    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 11 } } } }, cutout: '60%', animation: { duration: 800 } }
+    data: {
+      labels: entries.map(([k]) => k === null ? 'Outras' : (CATEGORY_MAP[k]?.label || k)),
+      datasets: [{ data: entries.map(([, v]) => v), backgroundColor: theme.palette, borderColor: theme.card, borderWidth: 3, hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '68%',
+      plugins: {
+        legend: legendOptions(isWide() ? 'right' : 'bottom'),
+        tooltip: { ...tooltipOptions(theme), callbacks: { label: (c) => ` ${c.label}: ${formatCurrency(c.raw)}` } }
+      },
+      animation: { duration: 700 }
+    }
   });
 }
 
 // ===== GRÁFICO POR RESPONSÁVEL =====
-function createResponsibleChart(transactions) {
+function createResponsibleChart(transactions, theme) {
   const ctx = document.getElementById('responsibleChart');
   if (!ctx) return null;
   const responsible = {};
@@ -337,27 +436,35 @@ function createResponsibleChart(transactions) {
     data: {
       labels: Object.keys(responsible),
       datasets: [
-        { label: 'Receitas', data: Object.values(responsible).map(r => r.entrada), backgroundColor: '#4CC9F0', borderRadius: 6 },
-        { label: 'Despesas', data: Object.values(responsible).map(r => r.saida), backgroundColor: '#3D6A8E', borderRadius: 6 }
+        { label: 'Receitas', data: Object.values(responsible).map(r => r.entrada), backgroundColor: theme.income, borderRadius: 6, borderSkipped: false, barPercentage: 0.7, categoryPercentage: 0.6 },
+        { label: 'Despesas', data: Object.values(responsible).map(r => r.saida), backgroundColor: theme.expense, borderRadius: 6, borderSkipped: false, barPercentage: 0.7, categoryPercentage: 0.6 }
       ]
     },
     options: {
-      responsive: true, maintainAspectRatio: true,
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 11 } } } },
-      scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } }, x: { grid: { display: false }, ticks: { font: { size: 11 } } } },
-      animation: { duration: 800 }
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: legendOptions('bottom'),
+        tooltip: { ...tooltipOptions(theme), callbacks: { label: (c) => ` ${c.dataset.label}: ${formatCurrency(c.raw)}` } }
+      },
+      scales: {
+        y: { beginAtZero: true, border: { display: false }, grid: { color: theme.grid }, ticks: { color: theme.muted, maxTicksLimit: 5, callback: (v) => compactBRL(v) } },
+        x: { border: { display: false }, grid: { display: false }, ticks: { color: theme.text, font: { weight: 600 } } }
+      },
+      animation: { duration: 700 }
     }
   });
 }
 
 // ===== GRÁFICO POR TIPO DE DÍVIDA =====
-function createDebtTypeChart(debts) {
+function createDebtTypeChart(debts, theme) {
   const ctx = document.getElementById('debtTypeChart');
   if (!ctx) return null;
+  const css = getComputedStyle(document.documentElement);
+  const c = (name) => css.getPropertyValue(name).trim();
   const typeMap = {
-    unica: { label: 'Únicas', color: '#9CA3AF' }, fixa: { label: 'Fixas', color: '#FF9F43' },
-    cartao: { label: 'Cartão', color: '#8B5CF6' }, emprestimo: { label: 'Empréstimo', color: '#06D6A0' },
-    financiamento: { label: 'Financiamento', color: '#4361EE' }, parcelada: { label: 'Financiamento', color: '#4361EE' }
+    unica: { label: 'Únicas', color: c('--c-slate') }, fixa: { label: 'Fixas', color: c('--c-amber') },
+    cartao: { label: 'Cartão', color: c('--c-plum') }, emprestimo: { label: 'Empréstimo', color: c('--c-coral') },
+    financiamento: { label: 'Financiamento', color: c('--c-navy') }, parcelada: { label: 'Financiamento', color: c('--c-navy') }
   };
   const totals = {};
   debts.forEach(d => {
@@ -371,15 +478,15 @@ function createDebtTypeChart(debts) {
     type: 'doughnut',
     data: {
       labels: keys.map(k => typeMap[k]?.label || k),
-      datasets: [{ data: keys.map(k => totals[k]), backgroundColor: keys.map(k => typeMap[k]?.color || '#9CA3AF'), borderWidth: 0 }]
+      datasets: [{ data: keys.map(k => totals[k]), backgroundColor: keys.map(k => typeMap[k]?.color || '#9CA3AF'), borderColor: theme.card, borderWidth: 3, hoverOffset: 6 }]
     },
     options: {
-      responsive: true, maintainAspectRatio: true,
+      responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 11 } } },
-        tooltip: { callbacks: { label: function(ctx) { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0; return `${ctx.label}: ${formatCurrency(ctx.raw)} (${pct}%)`; } } }
+        legend: legendOptions(isWide() ? 'right' : 'bottom'),
+        tooltip: { ...tooltipOptions(theme), callbacks: { label: function(ctx) { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0; return ` ${ctx.label}: ${formatCurrency(ctx.raw)} (${pct}%)`; } } }
       },
-      cutout: '60%', animation: { duration: 800 }
+      cutout: '68%', animation: { duration: 700 }
     }
   });
 }

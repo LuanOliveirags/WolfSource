@@ -272,7 +272,7 @@ export function updateSalaryHistory() {
         </div>
         ${additionsHtml}${deductionsHtml}
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div class="trans-actions">
         <div class="trans-amount ${isVR ? 'vr-amount' : 'entrada'}">+${formatCurrency(s.amount)}</div>
         <button onclick="deleteSalary('${s.id}')" class="btn-delete" title="Excluir"><i class="fa-solid fa-trash"></i></button>
       </div>

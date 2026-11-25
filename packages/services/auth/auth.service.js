@@ -273,22 +273,14 @@ export function renderPersonIncomeCards() {
   const container = document.querySelector('.person-cards-grid');
   if (!container) return;
   const members = state.familyMembers || [];
-  const gradients = [
-    ['#1e3a8a', '#1e1b6e'],
-    ['#9d174d', '#701a75'],
-    ['#065f46', '#064e3b'],
-    ['#9a3412', '#7c2d12'],
-    ['#5b21b6', '#4c1d95'],
-    ['#0e7490', '#155e75']
-  ];
+  const TONE_COUNT = 6; // tons de avatar definidos em salaries.css (.person-tone-0..5)
   const icons = ['fa-user-tie', 'fa-user', 'fa-user-astronaut', 'fa-user-ninja', 'fa-user-secret', 'fa-user-graduate'];
   let html = '';
   members.forEach((m, i) => {
     const slug = m.name.replace(/\s+/g, '_');
-    const [g1, g2] = gradients[i % gradients.length];
-    const fullWidthStyle = members.length === 1 ? ';grid-column:1/-1' : '';
+    const fullWidthStyle = members.length === 1 ? 'grid-column:1/-1' : '';
     html += `
-      <div class="person-income-card" style="background:linear-gradient(135deg, ${g1}, ${g2})${fullWidthStyle}">
+      <div class="person-income-card person-tone-${i % TONE_COUNT}" style="${fullWidthStyle}">
         <div class="pic-header">
           <div class="pic-avatar">${m.name.toLowerCase().startsWith('bianca') ? '<img src="assets/images/bianca.jpeg" alt="Bianca" style="width:100%;height:100%;object-fit:cover;border-radius:50%">' : m.name.toLowerCase().startsWith('luan') ? '<img src="assets/images/luan.jpg" alt="Luan" style="width:100%;height:100%;object-fit:cover;border-radius:50%">' : m.name.toLowerCase().startsWith('monica') ? '<img src="assets/images/Monica.png" alt="Monica" style="width:100%;height:100%;object-fit:cover;border-radius:50%">' : '<i class="fa-solid ' + icons[i % icons.length] + '"></i>'}</div>
           <span class="pic-name">${m.name}</span>
@@ -307,10 +299,10 @@ export function renderPersonIncomeCards() {
       </div>`;
   });
   if (members.length > 1) html += `
-    <div class="person-income-card combined-card" style="grid-column: 1 / -1;">
+    <div class="person-income-card combined-card">
       <div class="pic-header">
         <div class="pic-avatar combined-avatar"><i class="fa-solid fa-users"></i></div>
-        <span class="pic-name">Combinado</span>
+        <span class="pic-name">Renda da família</span>
       </div>
       <div class="pic-combined-grid">
         <div class="pic-combined-item">
@@ -459,6 +451,8 @@ export function applyUserToUI() {
   if (!user) return;
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   set('headerUserName', user.fullName);
+  const hour = new Date().getHours();
+  set('headerGreeting', hour < 12 ? 'Bom dia,' : hour < 18 ? 'Boa tarde,' : 'Boa noite,');
   set('settingsUserName', user.fullName);
   set('settingsUserEmail', user.email);
 

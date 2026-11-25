@@ -1,28 +1,6 @@
-/* SETTINGS.CSS — Profile card, settings groups, admin panel */
 
-/* ─── SETTINGS PAGE ─── */
-.settings-profile-card {
-  margin: 20px 16px 0;
-  background: var(--grad-primary);
-  border-radius: var(--r-xl);
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  color: #fff;
-}
-.spc-avatar-wrap {
-  width: 64px; height: 64px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.2);
-  border: 2px solid rgba(255,255,255,0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  flex-shrink: 0;
-  position: relative;
-}
+
+/* SETTINGS.CSS — Profile card, settings groups, admin panel *//* ─── SETTINGS PAGE ─── */
 .spc-avatar-wrap img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 .spc-avatar-overlay {
   position: absolute;
@@ -38,31 +16,6 @@
   transition: opacity 0.2s;
 }
 .spc-avatar-wrap:hover .spc-avatar-overlay { opacity: 1; }
-.spc-avatar-fallback {
-  position: absolute;
-  font-size: 1.5rem;
-  color: rgba(255,255,255,0.8);
-}
-.spc-text h3 { color: #fff; font-size: 1.125rem; margin-bottom: 2px; }
-.spc-text p { color: rgba(255,255,255,0.65); font-size: 0.8125rem; }
-
-.settings-groups { padding: 16px; display: flex; flex-direction: column; gap: 20px; }
-.settings-group {}
-.sg-label {
-  font-size: 0.6875rem;
-  font-weight: var(--fw-bold);
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  padding: 0 4px;
-  margin-bottom: 8px;
-}
-.sg-body {
-  background: var(--bg-card);
-  border-radius: var(--r-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-xs);
-  border: 1px solid var(--border);
-}
 .settings-row {
   display: flex;
   align-items: center;
@@ -81,25 +34,16 @@
 .settings-row.info-row { cursor: default; }
 .settings-row.info-row:hover { background: none; }
 .settings-row.danger-row { color: var(--danger); }
-.sr-icon {
-  width: 34px; height: 34px;
-  border-radius: var(--r-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.875rem;
-  flex-shrink: 0;
-}
 .sr-text { flex: 1; }
 .sr-arrow { color: var(--text-muted); font-size: 0.75rem; }
-.export-icon  { background: #EBF3FE; color: var(--info); }
-.import-icon  { background: #E6FBF6; color: var(--success); }
-.sync-icon      { background: #EAF8FE; color: var(--income-dark); }
-.sync2-icon     { background: #F0F0FF; color: #7C3AED; }
+.export-icon  { background: var(--info-bg); color: var(--info); }
+.import-icon  { background: var(--success-bg); color: var(--success); }
+.sync-icon      { background: var(--income-bg); color: var(--income-dark); }
+.sync2-icon     { background: color-mix(in srgb, var(--c-plum) 14%, transparent); color: var(--c-plum); }
 .install-icon   { background: var(--primary-light); color: var(--primary-dark); background: rgba(var(--primary-rgb),0.1); }
 .danger-icon    { background: var(--danger-bg); color: var(--danger); }
-.pwa-icon       { background: #FEF3E6; color: var(--warning); }
-.notif-bell-icon { background: rgba(255, 159, 67, 0.15); color: #FF9F43; }
+.pwa-icon       { background: var(--warning-bg); color: var(--warning); }
+.notif-bell-icon { background: var(--warning-bg); color: var(--warning); }
 
 /* ===== Toggle Switch (Notificações) ===== */
 .toggle-switch {
@@ -131,7 +75,7 @@
   box-shadow: 0 1px 4px rgba(0,0,0,0.25);
   transition: transform 0.3s;
 }
-.toggle-switch input:checked + .toggle-slider { background: var(--primary, #3D6A8E); }
+.toggle-switch input:checked + .toggle-slider { background: var(--income); }
 .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
 [data-theme="dark"] .toggle-slider { background: rgba(255,255,255,0.18); }
 
@@ -398,51 +342,8 @@
 }
 
 /* ─── Settings Phone Field ─── */
-.spc-phone-row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 6px 0 4px;
-}
-.spc-phone-icon {
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-}
-.spc-phone-val {
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  flex: 1;
-}
-.spc-btn-edit-phone {
-  background: rgba(var(--primary-rgb,61,106,142), 0.12);
-  border: none;
-  color: var(--primary);
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.2s;
-}
-.spc-btn-edit-phone:hover { background: rgba(var(--primary-rgb,61,106,142), 0.22); }
 
 /* Recado — reutiliza estilos do telefone */
-.spc-recado-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  margin: 2px 0 4px;
-}
-.spc-recado-val {
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  flex: 1;
-  font-style: italic;
-  line-height: 1.4;
-}
 
 /* Textarea no modal de recado */
 .recado-input-wrap {
@@ -584,4 +485,113 @@
   border-radius: 4px;
   padding: 1px 5px;
   font-size: 0.8125rem;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOBO & OURO — perfil (hero escuro) e grupos
+   ═══════════════════════════════════════════════════════════ */
+.settings-profile-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px 20px;
+  margin-bottom: 24px;
+  border-radius: var(--r-xl);
+  background: var(--grad-ink);
+  border: 1px solid var(--ink-line);
+  box-shadow: var(--shadow-ink);
+  color: var(--ink-text);
+}
+.settings-profile-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold-bright) 50%, var(--gold) 70%, transparent);
+  opacity: 0.8;
+}
+.spc-avatar-wrap {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(from 210deg, var(--gold-bright), var(--gold-deep), var(--gold-bright));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+}
+.spc-avatar-wrap img { border: 3px solid var(--ink); }
+.spc-avatar-fallback { position: absolute; font-size: 1.6rem; color: var(--ink-text-2); }
+.spc-text { min-width: 0; flex: 1; }
+.spc-text h3 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.03em;
+  color: var(--ink-text);
+  margin-bottom: 2px;
+}
+.spc-text p { color: var(--ink-text-2); font-size: 0.84rem; }
+.spc-phone-row, .spc-recado-row { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; }
+.spc-phone-icon { width: 14px; text-align: center; font-size: 0.75rem; color: var(--gold); }
+.spc-phone-val, .spc-recado-val { font-size: 0.84rem; color: var(--ink-text-2); flex: 0 1 auto; min-width: 0; }
+.spc-recado-val { font-style: italic; line-height: 1.4; }
+.spc-btn-edit-phone {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  flex-shrink: 0;
+  color: var(--ink-text-2);
+  background: rgba(255, 255, 255, 0.06);
+  transition: background var(--ease), color var(--ease);
+}
+.spc-btn-edit-phone:hover { background: rgba(255, 255, 255, 0.14); color: var(--ink-text); }
+.settings-profile-card .status-pill { margin-top: 12px; }
+.settings-profile-card .status-pill:not(.connected):not(.disconnected) { background: rgba(255, 255, 255, 0.08); color: var(--ink-text-2); }
+.settings-profile-card .status-pill.connected { background: rgba(var(--gold-rgb), 0.16); color: var(--gold-bright); }
+
+.settings-groups { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.sg-label {
+  font-size: 0.7rem;
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 4px;
+  margin-bottom: 8px;
+}
+.sg-body {
+  background: var(--bg-card);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.sr-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+/* Cor neutra só para ícones sem classe de tom (especificidade zero) */
+:where(.sr-icon) { background: var(--bg-sunken); color: var(--text-secondary); }
+
+@media (min-width: 1024px) {
+  .settings-profile-card { padding: 28px 32px; gap: 24px; }
+  .spc-avatar-wrap { width: 92px; height: 92px; }
+  .spc-text h3 { font-size: 1.75rem; }
+  .settings-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 }
