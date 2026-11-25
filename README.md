@@ -139,7 +139,8 @@ WolfSource/
 │       ├── helpers.js
 │       └── capacitor.bridge.js
 │
-├── backend/                           # API Flask — Railway
+├── functions/                         # Backend — Cloud Functions (Python)
+├── backend/                           # (desativado) antiga API Flask do Railway
 │   ├── app.py                         # Rotas Flask + endpoint /api/auth/token
 │   └── requirements.txt
 │
@@ -175,7 +176,7 @@ Toda feature segue separação estrita:
 | Python 3.8+ / Flask | API REST + emissão de custom tokens |
 | firebase-admin 6 | Firestore Admin + Firebase Auth Admin |
 | Flask-CORS | Suporte a preflight CORS |
-| Railway | Deploy contínuo do backend |
+| Cloud Functions | Backend (token de login, push, leitura de extratos por IA) |
 
 ### Banco de Dados
 - **Cloud Firestore** — dados em tempo real (transações, dívidas, salários, chat, usuários, famílias)
@@ -188,7 +189,7 @@ Toda feature segue separação estrita:
 
 ```
 Login SHA-256 (browser)
-  → POST /api/auth/token (Railway)
+  → POST /api/auth/token (Cloud Function)
       → Valida users/{userId}.familyId no Firestore Admin
       → set_custom_user_claims(uid, { familyId })
       → create_custom_token(uid)
@@ -225,48 +226,53 @@ passwordResets
 | Isolamento de dados | Firestore Security Rules — nenhuma família acessa dados de outra |
 | Claims JWT | `set_custom_user_claims` — persistentes em todos os refreshes |
 | Credenciais Firebase | Config de cliente é pública por design (Firebase SDK) |
-| Service Account | Variável de ambiente `FIREBASE_SERVICE_ACCOUNT_JSON` no Railway |
+| Service Account | Conta padrão do Cloud Functions (papel Criador de token da conta de serviço) |
 | Domínios autorizados | Firebase Console → Authentication → Authorized domains |
 
-## API Backend (Flask)
+## Backend (Cloud Functions do Firebase)
 
-### Autenticação
+O backend é uma Cloud Function Python (2ª geração) chamada `api`, em `functions/main.py`.
+URL base: `https://us-central1-financeiro-lopes.cloudfunctions.net` (constante `BACKEND_URL` em
+`packages/services/firebase/firebase.config.js`). A mesma URL atende site, previews, APK e dev local;
+as origens permitidas estão no CORS da função.
+
 ```
-POST /api/auth/token     Valida userId+familyId → retorna Firebase custom token
-```
-
-### Importação de extratos
-```
-POST /api/statements/parse   multipart "file" (PDF até 20 MB ou imagem até 5 MB)
-                             Header: Authorization: Bearer <Firebase ID token com claim familyId>
-                             → { bank, transactions: [{ date, description, amount, type }], warnings }
-```
-Requer `ANTHROPIC_API_KEY` no ambiente do backend (Railway → Variables). Sem ela, OFX/CSV/Excel continuam funcionando no navegador e no APK; só PDF e fotos ficam indisponíveis.
-
-### Dados (complementar ao Firestore direto)
-```
-GET  /api/transactions        POST /api/transactions
-PUT  /api/transactions/:id    DELETE /api/transactions/:id
-
-GET  /api/debts               POST /api/debts
-PUT  /api/debts/:id           DELETE /api/debts/:id
-
-GET  /api/salaries            POST /api/salaries
-DELETE /api/salaries/:id
-
-GET  /health
+POST /api/auth/token         userId + familyId → custom token do Firebase Auth (claims familyId e role)
+POST /api/fcm/send           push do chat            (exige Authorization: Bearer <ID token>)
+POST /api/statements/parse   PDF ≤ 20 MB / foto ≤ 5 MB (multipart "file") → lançamentos via Claude
+                             { bank, transactions: [{ date, description, amount, type }], warnings }
+                                                     (exige Authorization: Bearer <ID token com familyId>)
+GET  /api/health
 ```
 
-### Rodar o Backend Localmente
+> A pasta `backend/` (Flask no Railway) está **desativada** e não é usada pelo app.
+
+### Deploy das Functions (manual)
+
+Pré-requisitos, uma única vez:
+
+1. Projeto no plano **Blaze** (Firebase Console → Uso e faturamento). Cloud Functions e chamadas
+   externas (API da Anthropic) não rodam no plano gratuito.
+2. Chave da Anthropic como secret (o deploy falha sem ela):
+   ```bash
+   firebase functions:secrets:set ANTHROPIC_API_KEY
+   ```
+3. Permissão para a função emitir o token de login (`create_custom_token` assina com a conta de serviço
+   padrão). No Google Cloud Console → IAM, dê à conta
+   `621443570583-compute@developer.gserviceaccount.com` o papel **Criador de token da conta de serviço**
+   (`roles/iam.serviceAccountTokenCreator`), e ative a **IAM Service Account Credentials API**.
+
+A cada mudança em `functions/`:
 
 ```bash
-cd backend
-pip install -r requirements.txt
-python app.py      # inicia em http://localhost:5000
+cd functions
+python -m venv venv
+venv\Scripts\pip install -r requirements.txt      # Linux/macOS: venv/bin/pip
+cd ..
+firebase deploy --only functions
 ```
 
-Crie `backend/.env` com a service account do Firebase (veja `backend/.env.example`).
-O frontend detecta automaticamente e usa `localhost:5000` quando rodando em `localhost`.
+Teste rápido: `https://us-central1-financeiro-lopes.cloudfunctions.net/api/health` deve responder `{"status": "healthy"}`.
 
 ## Infra e Deploy
 
@@ -274,7 +280,7 @@ O frontend detecta automaticamente e usa `localhost:5000` quando rodando em `loc
 |---|---|---|
 | Produção | https://financeiro-lopes.web.app | Push em `main` via `deploy.yml` (Firebase Hosting, canal `live`) |
 | Staging | https://financeiro-lopes--staging-9u9590k6.web.app | Push em `dev` via `deploy-staging.yml` |
-| Backend | https://aware-delight-production-2e59.up.railway.app | Push em `main` — Railway usa `backend/Procfile` (Root Directory: `backend`) |
+| Backend | https://us-central1-financeiro-lopes.cloudfunctions.net/api | Manual: `firebase deploy --only functions` |
 
 ### Workflow de Desenvolvimento
 

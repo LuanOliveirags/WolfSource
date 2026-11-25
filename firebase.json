@@ -3,6 +3,19 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "python312",
+      "ignore": [
+        "venv",
+        ".git",
+        "__pycache__",
+        "*.local"
+      ]
+    }
+  ],
   "hosting": {
     "public": "www",
     "ignore": [
@@ -20,7 +33,10 @@
       {
         "source": "service-worker.js",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache" }
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
         ]
       }
     ]
