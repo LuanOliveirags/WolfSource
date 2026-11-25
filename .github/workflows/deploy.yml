@@ -1,5 +1,6 @@
-name: Deploy to GitHub Pages
+name: Deploy Produção (Firebase Hosting)
 
+# Dispara em qualquer push para a branch main
 on:
   push:
     branches: ["main"]
@@ -7,18 +8,13 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages"
+  group: "firebase-hosting-live"
   cancel-in-progress: false
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,14 +28,12 @@ jobs:
       - name: Build www/
         run: node infra/scripts/copy-web.js
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      # channelId "live" publica no site de produção:
+      # https://financeiro-lopes.web.app
+      - name: Deploy para Firebase Hosting (produção)
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          path: ./www
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FINANCEIRO_LOPES }}
+          projectId: financeiro-lopes
+          channelId: live

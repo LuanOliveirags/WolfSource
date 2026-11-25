@@ -1,10 +1,10 @@
-// Monta www/ para Capacitor e GitHub Pages deploy
+// Monta www/ para Capacitor e deploy no Firebase Hosting
 // Estrutura de saída:
 //   www/                   ← index.html, manifest.json, service-worker.js, assets/
 //   www/apps/web/src/      ← features, app, styles
 //   www/packages/          ← core, services, ui, utils
 
-import { cpSync, rmSync, mkdirSync, writeFileSync } from 'fs';
+import { cpSync, rmSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -22,8 +22,5 @@ cpSync(join(ROOT, 'apps/web/src'), join(DEST, 'apps/web/src'), { recursive: true
 
 // Preserva packages/ com mesmo path relativo dentro de www/
 cpSync(join(ROOT, 'packages'), join(DEST, 'packages'), { recursive: true });
-
-// Desativa Jekyll no GitHub Pages
-writeFileSync(join(DEST, '.nojekyll'), '');
 
 console.log('✅ Web assets copiados para www/');

@@ -70,7 +70,7 @@ Use sempre `npm run dev`.
 ## Deploy
 
 ```bash
-npm run deploy     # monta www/ e publica no GitHub Pages (branch gh-pages via Actions)
+npm run deploy     # monta www/ e publica no Firebase Hosting (produção)
 ```
 
 O GitHub Actions roda automaticamente a cada push no `main` — o deploy acontece sem precisar rodar o comando manualmente.
@@ -106,5 +106,5 @@ Nunca usar `frontend/assets/images/` — esse era o path antigo e não existe ma
 ## Observações
 
 - O `www/` é gerado automaticamente — não editar arquivos dentro dele diretamente
-- O branch `gh-pages` é gerenciado pelo GitHub Actions — não fazer commits manuais nele
+- A publicação é feita exclusivamente pelo Firebase Hosting (`firebase.json` → `hosting.public: "www"`)
 - Após qualquer alteração nos fontes, rodar `node infra/scripts/copy-web.js` ou `npm run dev` para refletir em `www/`

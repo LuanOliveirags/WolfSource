@@ -2,7 +2,7 @@
 
 Aplicação web e Android para gestão financeira familiar. Desenvolvida como PWA com arquitetura modular vanilla JS, suporte offline, sincronização em tempo real com Firestore e empacotamento Android via Capacitor — web e APK compartilham o mesmo código e backend.
 
-**Produção:** https://luanoliveirags.github.io/WolfSource/
+**Produção:** https://financeiro-lopes.web.app
 
 ## Características Principais
 
@@ -263,7 +263,7 @@ O frontend detecta automaticamente e usa `localhost:5000` quando rodando em `loc
 
 | Ambiente | URL | Trigger |
 |---|---|---|
-| Produção | https://luanoliveirags.github.io/WolfSource/ | Push em `main` via `deploy.yml` |
+| Produção | https://financeiro-lopes.web.app | Push em `main` via `deploy.yml` (Firebase Hosting, canal `live`) |
 | Staging | https://financeiro-lopes--staging-9u9590k6.web.app | Push em `dev` via `deploy-staging.yml` |
 | Backend | https://aware-delight-production-2e59.up.railway.app | Push em `main` — Railway usa `backend/Procfile` (Root Directory: `backend`) |
 
