@@ -35,8 +35,10 @@ export const EMAILJS_CONFIG = {
   publicKey:  'YOUR_PUBLIC_KEY'
 };
 
-// URL do backend Flask — usa localhost em dev, Railway em produção
-const _isLocal = typeof window !== 'undefined' &&
+// URL do backend Flask — usa localhost em dev, Railway em produção.
+// O APK (Capacitor) também roda em https://localhost, mas deve falar com o Railway.
+const _isNativeApp = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.();
+const _isLocal = typeof window !== 'undefined' && !_isNativeApp &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 export const BACKEND_URL = _isLocal
   ? 'http://localhost:5000'

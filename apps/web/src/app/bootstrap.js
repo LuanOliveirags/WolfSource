@@ -14,6 +14,7 @@ import { initNotifications, storeDebtSummaryForSW } from '../../../../packages/s
 import { initChat } from '../features/chat/chat.js';
 import { initFCM } from '../../../../packages/services/firebase/fcm.service.js';
 import { refreshShoppingIfOpen } from '../features/shopping/shopping.js';
+import { setupImportListeners } from '../features/import/import.js';
 
 // Carrega todos os fragmentos HTML antes de qualquer acesso ao DOM
 await loadPages();
@@ -49,6 +50,7 @@ setupSummaryToggle();
 setupOnlineOfflineListeners();
 initResetPasswordUI();
 initMonthScroller();
+setupImportListeners();
 
 // Operações async que dependem do Firebase (podem demorar)
 await createDefaultAdmin();

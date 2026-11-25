@@ -11,7 +11,8 @@ const PAGE_FRAGMENTS = [
     'apps/web/src/features/settings/settings.html',
     'apps/web/src/features/chores/chores.html',
     'apps/web/src/features/shopping/shopping.html',
-    'apps/web/src/features/chat/chat.html'
+    'apps/web/src/features/chat/chat.html',
+    'apps/web/src/features/import/import.html'
 ];
 
 /**
@@ -29,7 +30,7 @@ export async function loadPages() {
             )
         );
 
-        const [loginHtml, dashHtml, transHtml, debtsHtml, salHtml, settingsHtml, choresHtml, shopHtml, chatHtml] = results;
+        const [loginHtml, dashHtml, transHtml, debtsHtml, salHtml, settingsHtml, choresHtml, shopHtml, chatHtml, importHtml] = results;
 
         const appContainer = document.getElementById('appContainer');
         const mainContent = document.getElementById('mainContent');
@@ -48,6 +49,9 @@ export async function loadPages() {
 
         // Chat panel + overlays + modais → depois do appContainer
         appContainer.insertAdjacentHTML('afterend', chatHtml);
+
+        // Modal de importação de extrato → fim do body
+        document.body.insertAdjacentHTML('beforeend', importHtml);
     } catch (error) {
         console.error('❌ Erro ao carregar páginas:', error);
         document.body.innerHTML = `

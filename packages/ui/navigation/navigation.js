@@ -285,6 +285,8 @@ function handleQuickAction(action) {
     switchTab('chores');
   } else if (action === 'chat') {
     openChat();
+  } else if (action === 'import') {
+    window.openImportModal?.();
   }
 }
 

@@ -35,4 +35,4 @@ ENV PYTHONUNBUFFERED=1
 ENV PORT=5000
 
 # Iniciar aplicação — usa $PORT injetado pelo Railway (ou 5000 como fallback)
-CMD gunicorn --bind 0.0.0.0:$PORT --workers 4 --timeout 120 app:app
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 4 --timeout 330 app:app
