@@ -92,7 +92,7 @@ export function renderTransactionItem(t) {
           <span>${esc(t.responsible)}</span>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div class="trans-actions">
         <div class="trans-amount ${amtClass}">${sign}${formatCurrency(t.amount)}</div>
         <button onclick="deleteTransaction('${t.id}')" class="btn-delete" title="Excluir">
           <i class="fa-solid fa-trash"></i>

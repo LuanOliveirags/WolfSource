@@ -311,3 +311,31 @@
   color: #fff;
   border-color: var(--primary);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   LOBO & OURO — dias, progresso e indicadores
+   ═══════════════════════════════════════════════════════════ */
+.cds-day { border-radius: var(--r-md); border-width: 1px; padding: 9px 4px; min-width: 46px; }
+.cds-day:hover { border-color: var(--border-strong); }
+.cds-day.today { border-color: var(--gold); }
+.cds-day.active { background: var(--ink); border-color: var(--ink); box-shadow: none; }
+.cds-day.active .cds-label { color: var(--gold); }
+.cds-day.active .cds-num { color: var(--ink-text); }
+[data-theme="dark"] .cds-day.active { background: var(--gold); border-color: var(--gold); }
+[data-theme="dark"] .cds-day.active .cds-label,
+[data-theme="dark"] .cds-day.active .cds-num { color: #1B1406; }
+.cds-num { font-family: var(--font-display); font-weight: var(--fw-bold); letter-spacing: -0.02em; }
+
+.chores-dashboard { border-radius: var(--r-lg); box-shadow: none; padding: 16px; gap: 14px; }
+.chores-progress-ring-wrap { width: 88px; height: 88px; }
+.ring-bg { stroke: var(--bg-sunken); }
+.ring-fill { stroke: var(--income); }
+.ring-pct { font-family: var(--font-display); font-weight: var(--fw-bold); color: var(--text-primary); letter-spacing: -0.03em; }
+.chores-stats-grid { min-width: 0; }
+.chore-stat-card { min-width: 0; padding: 8px 10px; border-radius: var(--r-md); }
+.csc-info { min-width: 0; }
+.csc-val { font-family: var(--font-display); letter-spacing: -0.02em; }
+.csc-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 479px) {
+  .chores-stats-grid .csc-icon { display: none; }
+}

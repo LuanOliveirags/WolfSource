@@ -1,49 +1,68 @@
 <!-- LOGIN PAGE --> <!-- Página de Login do sistema -->
 <div id="loginContainer" class="login-container active">
-    <div class="login-bg-blobs">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
-    </div>
+
+    <!-- Painel da marca (desktop) -->
+    <aside class="login-brand" aria-hidden="true">
+        <div class="login-brand-top">
+            <img src="assets/images/lopes-logo-opt.png" alt="" class="login-brand-mark">
+            <span class="login-brand-name">WolfSource</span>
+        </div>
+        <div class="login-brand-copy">
+            <p class="login-brand-eyebrow">Gestão financeira da família</p>
+            <h2 class="login-brand-title">Cada real da alcateia, <em>no lugar certo.</em></h2>
+            <ul class="login-brand-points">
+                <li><i class="fa-solid fa-chart-line"></i> Saldo, dívidas e salários num só painel</li>
+                <li><i class="fa-solid fa-cart-shopping"></i> Lista de compras e tarefas da casa</li>
+                <li><i class="fa-solid fa-cloud-arrow-up"></i> Funciona offline e sincroniza sozinho</li>
+            </ul>
+        </div>
+        <img src="assets/images/lopes-logo-opt.png" alt="" class="login-brand-watermark">
+    </aside>
+
     <div class="login-wrapper">
         <div class="login-logo">
             <div class="login-avatar-wrap">
                 <img src="assets/images/lopes-logo-opt.png" alt="WolfSource - Gestão Financeira" class="profile-logo">
             </div>
             <h1>WolfSource</h1>
-            <p class="login-tagline">Gestão Financeira</p>
+            <p class="login-tagline">Gestão financeira</p>
         </div>
-        
-        <form id="loginForm" class="login-form">
-            <div class="form-group input-float">
-                <i class="fa-solid fa-user field-icon"></i>
-                <input type="text" id="username" placeholder="Usuário" required autocomplete="username">
-            </div>
-            
-            <div class="form-group input-float">
-                <i class="fa-solid fa-lock field-icon"></i>
-                <input type="password" id="password" placeholder="Senha" required autocomplete="current-password">
-                <button type="button" id="togglePassword" class="toggle-password-btn" aria-label="Mostrar senha">
-                    <i class="fa-solid fa-eye"></i>
-                </button>
-            </div>
-            
-            <button type="submit" class="login-btn">
-                <span>Entrar</span>
-                <i class="fa-solid fa-arrow-right"></i>
-            </button>
-            
-            <div id="loginError" class="login-error"></div>
-        </form>
 
-        <button type="button" id="forgotPasswordBtn" class="forgot-password-link">
-            <i class="fa-solid fa-key"></i> Esqueci minha senha
-        </button>
-        
-        <div class="login-hint">
-            <i class="fa-solid fa-circle-info"></i>
-            <span>Utilize seu login e senha cadastrados</span>
+        <div class="login-card">
+            <div class="login-card-head">
+                <h2 class="login-card-title">Entrar</h2>
+                <p class="login-card-sub">Use o login e a senha cadastrados.</p>
+            </div>
+
+            <form id="loginForm" class="login-form">
+                <label class="login-field-label" for="username">Usuário</label>
+                <div class="form-group input-float">
+                    <i class="fa-solid fa-user field-icon"></i>
+                    <input type="text" id="username" placeholder="seu.login" required autocomplete="username">
+                </div>
+
+                <label class="login-field-label" for="password">Senha</label>
+                <div class="form-group input-float">
+                    <i class="fa-solid fa-lock field-icon"></i>
+                    <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+                    <button type="button" id="togglePassword" class="toggle-password-btn" aria-label="Mostrar senha">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+
+                <button type="submit" class="login-btn">
+                    <span>Entrar</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+
+                <div id="loginError" class="login-error"></div>
+            </form>
+
+            <button type="button" id="forgotPasswordBtn" class="forgot-password-link">
+                <i class="fa-solid fa-key"></i> Esqueci minha senha
+            </button>
         </div>
+
         <p class="login-dev-credit">Desenvolvido por <a href="https://luangs.pro/" target="_blank" rel="noopener noreferrer">Luan Gs</a></p>
     </div>
 </div>

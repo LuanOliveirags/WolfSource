@@ -1,10 +1,26 @@
 <!-- ====== DEBTS TAB ====== --> <!-- Aba de dívidas -->
 <section id="debts" class="tab-content">
     <div class="page-header">
-        <h2 class="page-title">Dívidas</h2>
-        <button id="addDebtBtn" class="add-new-btn">
-            <i class="fa-solid fa-plus"></i> Nova
-        </button>
+        <div class="page-heading">
+            <p class="page-eyebrow">Compromissos</p>
+            <h2 class="page-title">Dívidas</h2>
+        </div>
+        <div class="page-header-actions">
+            <!-- Alertas de vencimento (sino) -->
+            <div class="debt-alerts-wrap">
+                <button id="debtAlertsBell" class="debt-bell-btn" style="display:none" title="Vencimentos próximos">
+                    <i class="fa-solid fa-bell"></i>
+                    <span class="debt-bell-badge" id="debtAlertsBadge">0</span>
+                </button>
+                <div id="debtAlertsDropdown" class="debt-alerts-dropdown">
+                    <p class="debt-alerts-title">Vencimentos</p>
+                    <div id="debtAlerts" class="debt-alerts"></div>
+                </div>
+            </div>
+            <button id="addDebtBtn" class="add-new-btn">
+                <i class="fa-solid fa-plus"></i> Nova dívida
+            </button>
+        </div>
     </div>
 
     <!-- Debt Modal --> <!-- Modal para adicionar/editar dívida -->
@@ -164,19 +180,8 @@
         </div>
     </div>
 
-    <!-- Alertas de vencimento (sino) -->
-    <div class="debt-alerts-wrap">
-        <button id="debtAlertsBell" class="debt-bell-btn" style="display:none">
-            <i class="fa-solid fa-bell"></i>
-            <span class="debt-bell-badge" id="debtAlertsBadge">0</span>
-        </button>
-        <div id="debtAlertsDropdown" class="debt-alerts-dropdown">
-            <div id="debtAlerts" class="debt-alerts"></div>
-        </div>
-    </div>
-
-    <!-- Debt Summary --> <!-- Resumo das dívidas -->
-    <div class="debt-overview-panel stagger-enter">
+    <!-- Resumo das dívidas: cada bloco é também um filtro da lista -->
+    <div class="debt-overview stagger-enter">
         <div class="debt-overview-card debt-ov-monthly" data-filter="monthly" role="button" tabindex="0">
             <div class="debt-ov-header">
                 <div class="debt-ov-icon"><i class="fa-solid fa-rotate"></i></div>
@@ -219,11 +224,9 @@
                 <span class="debt-ov-remaining" id="loanRemaining">Restante: R$ 0,00</span>
             </div>
         </div>
-    </div>
-    <div class="debt-overview-panel" id="cardDebtCardsContainer">
-        <!-- Cartões de dívida por membro - Populado dinamicamente por JS -->
-    </div>
-    <div class="debt-summary-strip stagger-enter">
+        <div class="debt-overview-members" id="cardDebtCardsContainer">
+            <!-- Cartões de dívida por membro - Populado dinamicamente por JS -->
+        </div>
         <div class="summary-mini" data-filter="all" role="button" tabindex="0">
             <div class="sm-icon active-sm-icon"><i class="fa-solid fa-hourglass-half"></i></div>
             <div class="sm-text">
@@ -234,10 +237,14 @@
         <div class="summary-mini" data-filter="paid" role="button" tabindex="0">
             <div class="sm-icon paid-sm-icon"><i class="fa-solid fa-circle-check"></i></div>
             <div class="sm-text">
-                <p class="sm-label">Total Pagas</p>
+                <p class="sm-label">Pagas</p>
                 <p class="sm-value" id="totalPaidDebtsTab">R$ 0,00</p>
             </div>
         </div>
+    </div>
+
+    <div class="section-head debts-list-head">
+        <h3 class="section-title">Todas as dívidas</h3>
     </div>
 
     <div id="debtFilterBar" class="debt-filter-bar">
