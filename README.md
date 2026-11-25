@@ -10,7 +10,7 @@ Aplicação web e Android para gestão financeira familiar. Desenvolvida como PW
 - **Isolamento Multiusuário**: Dados isolados por família via Firestore Security Rules + claim `familyId` no JWT
 - **Dashboard Interativo**: KPIs, gráficos Chart.js e análise financeira mensal
 - **Controle de Transações**: Registro completo de entradas e saídas com categorias
-- **Importação de Extratos**: OFX, CSV e Excel lidos no próprio aparelho; PDF e fotos lidos por IA (Claude) no backend — com revisão editável, categoria sugerida e detecção de duplicados antes de gravar
+- **Importação de Extratos**: OFX, CSV, Excel, PDF e fotos lidos no próprio aparelho, sem custo e sem enviar dados — com revisão editável, categoria sugerida, duplicados e transferências entre contas próprias desmarcados antes de gravar
 - **Gestão de Dívidas**: Controle de vencimentos, status automático e alertas
 - **Gestão de Salários**: Acompanhamento de rendas por membro da família
 - **Lista de Compras**: Colaborativa e sincronizada em tempo real
@@ -139,7 +139,8 @@ WolfSource/
 │       ├── helpers.js
 │       └── capacitor.bridge.js
 │
-├── backend/                           # API Flask — Railway
+├── workers/api/                       # Backend — Cloudflare Worker (login + push)
+├── backend/                           # (desativado) antiga API Flask do Railway
 │   ├── app.py                         # Rotas Flask + endpoint /api/auth/token
 │   └── requirements.txt
 │
@@ -175,7 +176,7 @@ Toda feature segue separação estrita:
 | Python 3.8+ / Flask | API REST + emissão de custom tokens |
 | firebase-admin 6 | Firestore Admin + Firebase Auth Admin |
 | Flask-CORS | Suporte a preflight CORS |
-| Railway | Deploy contínuo do backend |
+| Cloudflare Workers | Backend gratuito (token de login e push) |
 
 ### Banco de Dados
 - **Cloud Firestore** — dados em tempo real (transações, dívidas, salários, chat, usuários, famílias)
@@ -188,7 +189,7 @@ Toda feature segue separação estrita:
 
 ```
 Login SHA-256 (browser)
-  → POST /api/auth/token (Railway)
+  → POST /api/auth/token (Cloudflare Worker)
       → Valida users/{userId}.familyId no Firestore Admin
       → set_custom_user_claims(uid, { familyId })
       → create_custom_token(uid)
@@ -225,48 +226,54 @@ passwordResets
 | Isolamento de dados | Firestore Security Rules — nenhuma família acessa dados de outra |
 | Claims JWT | `set_custom_user_claims` — persistentes em todos os refreshes |
 | Credenciais Firebase | Config de cliente é pública por design (Firebase SDK) |
-| Service Account | Variável de ambiente `FIREBASE_SERVICE_ACCOUNT_JSON` no Railway |
+| Service Account | Segredo `FIREBASE_SERVICE_ACCOUNT` no Cloudflare Worker |
 | Domínios autorizados | Firebase Console → Authentication → Authorized domains |
 
-## API Backend (Flask)
+## Backend (Cloudflare Workers — plano gratuito)
 
-### Autenticação
+O backend é um Worker em JavaScript, sem dependências, em `workers/api/` (custo zero, sem cartão).
+Ele fala com o Firebase pelas APIs REST do Google usando a conta de serviço — o projeto Firebase
+continua no plano gratuito (Spark).
+
 ```
-POST /api/auth/token     Valida userId+familyId → retorna Firebase custom token
-```
-
-### Importação de extratos
-```
-POST /api/statements/parse   multipart "file" (PDF até 20 MB ou imagem até 5 MB)
-                             Header: Authorization: Bearer <Firebase ID token com claim familyId>
-                             → { bank, transactions: [{ date, description, amount, type }], warnings }
-```
-Requer `ANTHROPIC_API_KEY` no ambiente do backend (Railway → Variables). Sem ela, OFX/CSV/Excel continuam funcionando no navegador e no APK; só PDF e fotos ficam indisponíveis.
-
-### Dados (complementar ao Firestore direto)
-```
-GET  /api/transactions        POST /api/transactions
-PUT  /api/transactions/:id    DELETE /api/transactions/:id
-
-GET  /api/debts               POST /api/debts
-PUT  /api/debts/:id           DELETE /api/debts/:id
-
-GET  /api/salaries            POST /api/salaries
-DELETE /api/salaries/:id
-
-GET  /health
+POST /api/auth/token   userId + familyId → custom token do Firebase Auth (claims familyId e role)
+POST /api/fcm/send     push do chat (exige Authorization: Bearer <ID token do Firebase>)
+GET  /api/health
 ```
 
-### Rodar o Backend Localmente
+A URL do Worker fica em `BACKEND_URL` (`packages/services/firebase/firebase.config.js`); a mesma
+URL serve site, previews, APK e dev local (CORS no próprio Worker).
 
-```bash
-cd backend
-pip install -r requirements.txt
-python app.py      # inicia em http://localhost:5000
-```
+### Deploy do Worker
 
-Crie `backend/.env` com a service account do Firebase (veja `backend/.env.example`).
-O frontend detecta automaticamente e usa `localhost:5000` quando rodando em `localhost`.
+Uma única vez:
+
+1. Crie uma conta gratuita em https://dash.cloudflare.com (não pede cartão).
+2. Firebase Console → Configurações do projeto → Contas de serviço → **Gerar nova chave privada** (baixa um JSON).
+3. No terminal:
+   ```bash
+   cd workers/api
+   npx wrangler login                               # abre o navegador para autorizar
+   npx wrangler secret put FIREBASE_SERVICE_ACCOUNT # cole o conteúdo do JSON inteiro
+   npx wrangler deploy                              # mostra a URL *.workers.dev
+   ```
+4. Coloque essa URL em `BACKEND_URL` e publique o site.
+
+Teste rápido: `<URL do Worker>/api/health` deve responder `{"status":"healthy"}`.
+A cada mudança em `workers/api/`, rode de novo `npx wrangler deploy`.
+
+> A pasta `backend/` (Flask no Railway) está **desativada** e não é usada pelo app.
+
+### Importação de extratos (sem backend)
+
+Tudo roda no aparelho (navegador ou APK), em `packages/services/import/`:
+
+| Formato | Como é lido |
+|---|---|
+| OFX / QFX | Parser próprio (`statement.parser.js`) — o mais preciso, usa o ID do banco contra reimportação |
+| CSV / TXT / Excel | Detecta colunas de data, valor, crédito/débito e D/C; Excel via SheetJS (CDN, sob demanda) |
+| PDF com texto | pdf.js (CDN, sob demanda) remonta as linhas da tabela; ignora resumos, saldos, comprovantes e poupança |
+| PDF escaneado / foto | OCR com Tesseract em português (CDN, sob demanda) + binarização adaptativa; confira na revisão |
 
 ## Infra e Deploy
 
@@ -274,7 +281,7 @@ O frontend detecta automaticamente e usa `localhost:5000` quando rodando em `loc
 |---|---|---|
 | Produção | https://financeiro-lopes.web.app | Push em `main` via `deploy.yml` (Firebase Hosting, canal `live`) |
 | Staging | https://financeiro-lopes--staging-9u9590k6.web.app | Push em `dev` via `deploy-staging.yml` |
-| Backend | https://aware-delight-production-2e59.up.railway.app | Push em `main` — Railway usa `backend/Procfile` (Root Directory: `backend`) |
+| Backend | URL `*.workers.dev` do Worker `wolfsource-api` | Manual: `npx wrangler deploy` em `workers/api/` |
 
 ### Workflow de Desenvolvimento
 

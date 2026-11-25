@@ -10,6 +10,7 @@
 
 import { state }              from '../../core/state/store.js';
 import { db, firebaseReady } from './firebase.service.js';
+import { auth } from './firebase.init.js';
 import { FCM_VAPID_KEY, BACKEND_URL } from './firebase.config.js';
 import { isNative, getPlugin } from '../../utils/capacitor.bridge.js';
 
@@ -73,8 +74,8 @@ export async function initFCM() {
 }
 
 /**
- * Envia push para o destinatário via backend Flask (FCM V1 API).
- * O backend usa firebase-admin com service account para autenticar.
+ * Envia push para o destinatário via backend (Cloudflare Worker, FCM V1 API).
+ * O backend exige o ID token do Firebase de quem envia.
  */
 export async function sendFCMPush(recipientToken, senderName, text) {
   if (!recipientToken) return;
@@ -84,9 +85,11 @@ export async function sendFCMPush(recipientToken, senderName, text) {
   const body  = (text || '').substring(0, 100);
 
   try {
+    const idToken = await auth?.currentUser?.getIdToken();
+    if (!idToken) return;
     await fetch(`${BACKEND_URL}/api/fcm/send`, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
       body: JSON.stringify({
         token: recipientToken,
         title,

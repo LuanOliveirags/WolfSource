@@ -35,14 +35,11 @@ export const EMAILJS_CONFIG = {
   publicKey:  'YOUR_PUBLIC_KEY'
 };
 
-// URL do backend Flask — usa localhost em dev, Railway em produção.
-// O APK (Capacitor) também roda em https://localhost, mas deve falar com o Railway.
-const _isNativeApp = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.();
-const _isLocal = typeof window !== 'undefined' && !_isNativeApp &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-export const BACKEND_URL = _isLocal
-  ? 'http://localhost:5000'
-  : 'https://aware-delight-production-2e59.up.railway.app';
+// Backend: Cloudflare Worker "wolfsource-api" (código em workers/api/, plano gratuito).
+// A mesma URL serve o site, os previews, o APK (Capacitor) e o dev local — as origens
+// permitidas ficam no CORS do Worker. Rotas: `${BACKEND_URL}/api/...`.
+// Depois do `npx wrangler deploy`, coloque aqui a URL *.workers.dev que ele mostrar.
+export const BACKEND_URL = 'https://wolfsource-api.CONFIGURE-AQUI.workers.dev';
 
 // URL pública do APK para download direto.
 // Gere no Firebase Storage ou qualquer hospedagem e cole aqui.

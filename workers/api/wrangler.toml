@@ -1,0 +1,9 @@
+# Backend do WolfSource no Cloudflare Workers (plano gratuito)
+# Deploy: npx wrangler deploy        (dentro desta pasta)
+# Segredo: npx wrangler secret put FIREBASE_SERVICE_ACCOUNT   (cole o JSON da conta de serviço)
+name = "wolfsource-api"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "financeiro-lopes"

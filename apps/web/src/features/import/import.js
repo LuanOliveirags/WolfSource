@@ -1,8 +1,8 @@
 // ============================================================
 // IMPORT.JS — Controller do modal "Importar extrato"
-// Arquivo → leitura (local ou IA) → revisão editável → gravação.
+// Arquivo → leitura no aparelho → revisão editável → gravação.
 // Lógica de leitura: packages/services/import/statement.parser.js
-// e statement.ai.js (PDF/foto).
+// (OFX/CSV/planilha/texto) e statement.local.js (PDF e foto).
 // ============================================================
 /* global XLSX */
 
@@ -13,9 +13,9 @@ import { saveDataToStorage, saveToFirebase } from '../../../../../packages/servi
 import { buildTransactionObject } from '../../../../../packages/services/transactions/transactions.service.js';
 import {
   decodeBytes, parseOFX, parseCSVRows, parseTableRows, detectFileKind,
-  suggestCategory, suggestPaymentMethod, markDuplicates, buildImportRef
+  suggestCategory, suggestPaymentMethod, markDuplicates, buildImportRef, isInternalTransfer
 } from '../../../../../packages/services/import/statement.parser.js';
-import { parseStatementWithAI } from '../../../../../packages/services/import/statement.ai.js';
+import { readPdfLocally, readImageLocally } from '../../../../../packages/services/import/statement.local.js';
 import { updateDashboard } from '../dashboard/dashboard.js';
 import { updateTransactionHistory } from '../transactions/transactions.js';
 
@@ -91,18 +91,22 @@ async function readFile(file) {
     return parseTableRows(parseCSVRows(text), 'CSV');
   }
   if (kind === 'sheet') return readSpreadsheet(file);
-  if (kind === 'pdf' || kind === 'image') return parseStatementWithAI(file, kind);
+  if (kind === 'pdf') return readPdfLocally(file, setLoading);
+  if (kind === 'image') return readImageLocally(file, setLoading);
   if (kind === 'heic') throw new Error('Fotos HEIC não são suportadas. Tire a foto pelo botão "Fotografar extrato" ou envie em JPG.');
   throw new Error('Formato não reconhecido. Use OFX, CSV, Excel, PDF ou uma foto.');
+}
+
+function setLoading(title, sub = '') {
+  $('importLoadingText').textContent = title;
+  $('importLoadingSub').textContent = sub;
 }
 
 async function handleFile(file) {
   if (!file || busy) return;
   busy = true;
   const kind = detectFileKind(file);
-  const viaAI = kind === 'pdf' || kind === 'image';
-  $('importLoadingText').textContent = viaAI ? 'A IA está lendo o extrato…' : 'Lendo extrato…';
-  $('importLoadingSub').textContent = viaAI ? 'PDFs longos podem levar até um minuto.' : file.name;
+  setLoading(kind === 'image' ? 'Reconhecendo o texto da foto…' : 'Lendo extrato…', file.name);
   showStep('loading');
 
   try {
@@ -111,9 +115,13 @@ async function handleFile(file) {
     const enriched = result.items.map(item => ({
       ...item,
       category: suggestCategory(item.description, item.type),
-      payment: suggestPaymentMethod(item.description)
+      payment: suggestPaymentMethod(item.description),
+      internal: isInternalTransfer(item.description)
     }));
-    rows = markDuplicates(enriched, state.transactions).map(item => ({ ...item, selected: !item.duplicate }));
+    // Duplicados e transferências entre contas próprias vêm desmarcados
+    rows = markDuplicates(enriched, state.transactions).map(item => ({ ...item, selected: !item.duplicate && !item.internal }));
+    const internalCount = rows.filter(r => r.internal).length;
+    if (internalCount) sourceInfo.warnings.push(`${internalCount} transferência(s) entre suas contas (poupança/aplicação) vieram desmarcadas: não são receita nem despesa.`);
     if (!rows.length) {
       showStep('upload');
       showAlert(sourceInfo.warnings[0] || 'Nenhum lançamento encontrado neste arquivo.', 'warning');
@@ -155,6 +163,7 @@ function rowHtml(r, i) {
       <div class="import-row-main">
         <input type="text" class="import-row-desc" value="${esc(r.description)}" aria-label="Descrição">
         ${r.duplicate ? '<span class="import-dup-badge"><i class="fa-solid fa-clone"></i> Já existe um lançamento igual</span>' : ''}
+        ${r.internal ? '<span class="import-dup-badge is-internal"><i class="fa-solid fa-right-left"></i> Entre suas contas</span>' : ''}
       </div>
       <select class="import-row-cat" aria-label="Categoria">${CATEGORY_OPTIONS}</select>
       <button type="button" class="import-row-type" title="Trocar entrada/saída">
