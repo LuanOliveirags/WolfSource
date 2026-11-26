@@ -9,6 +9,9 @@
             <button type="button" class="add-new-btn" onclick="openImportModal()" title="Importar extrato bancário">
                 <i class="fa-solid fa-file-import"></i> <span class="hide-sm">Importar extrato</span>
             </button>
+            <button type="button" class="btn-secondary tx-select-btn" id="txSelectToggle" title="Selecionar várias transações para excluir">
+                <i class="fa-regular fa-square-check"></i> <span class="hide-sm">Selecionar</span>
+            </button>
             <input type="month" id="historyMonth" class="month-filter-hidden">
             <select id="historyFilter" class="filter-chip">
                 <option value="all">Todas</option>
@@ -113,6 +116,29 @@
 
     <!-- Transaction History List --> <!-- Lista de histórico de transações -->
     <div class="list-section">
+        <!-- Seleção em massa (aparece ao tocar em "Selecionar") -->
+        <div class="tx-bulk-bar" id="txBulkBar" hidden>
+            <div class="tx-bulk-top">
+                <label class="tx-bulk-all">
+                    <input type="checkbox" id="txSelectAll">
+                    <span id="txSelectAllLabel">Selecionar todas</span>
+                </label>
+                <span class="tx-bulk-count" id="txBulkCount">Nenhuma selecionada</span>
+            </div>
+            <div class="tx-bulk-period">
+                <span class="tx-bulk-period-label"><i class="fa-regular fa-calendar"></i> Período</span>
+                <input type="date" id="txPeriodFrom" aria-label="Data inicial">
+                <span class="tx-bulk-period-sep">até</span>
+                <input type="date" id="txPeriodTo" aria-label="Data final">
+                <button type="button" class="tx-bulk-link" id="txPeriodClear" hidden>Limpar</button>
+            </div>
+            <div class="tx-bulk-actions">
+                <button type="button" class="btn-secondary" id="txBulkCancel">Cancelar</button>
+                <button type="button" class="tx-bulk-delete" id="txBulkDelete" disabled>
+                    <i class="fa-solid fa-trash"></i> <span id="txBulkDeleteLabel">Excluir</span>
+                </button>
+            </div>
+        </div>
         <div id="transactionHistoryList" class="transactions-list"></div>
     </div>
     </div><!-- /tx-layout -->
