@@ -43,6 +43,12 @@ textarea {
   -webkit-appearance: none;
 }
 textarea { min-height: 88px; resize: vertical; line-height: 1.5; }
+
+/* iOS: data/mês vazios encolhem e o valor vem centralizado */
+input[type="date"],
+input[type="month"] { min-height: calc(1.35em + 26px); }
+input[type="date"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value { text-align: left; min-height: 1.35em; }
 input::placeholder, textarea::placeholder { color: var(--text-muted); }
 input:hover, select:hover, textarea:hover { border-color: color-mix(in srgb, var(--primary) 35%, var(--border-strong)); }
 

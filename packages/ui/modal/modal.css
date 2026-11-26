@@ -29,9 +29,14 @@
   max-height: 92vh;
   max-height: 92dvh;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   box-shadow: var(--shadow-xl);
+}
+
+/* Celular: com um modal aberto, a barra inferior sai de cena para não cobrir
+   o botão de enviar (garantia extra para o iOS). */
+@media (max-width: 1023px) {
+  body:has(.modal.active) .bottom-nav { visibility: hidden; }
 }
 /* "Alça" da folha inferior no mobile */
 .modal-content::before {
@@ -106,6 +111,7 @@
   pointer-events: none;
   width: 1px;
   height: 1px;
+  min-height: 0;
 }
 
 @media (min-width: 1024px) {
