@@ -33,7 +33,7 @@ try {
 }
 // ===== FIM FIREBASE MESSAGING =====
 
-const CACHE_NAME = 'wolfsource-v32';
+const CACHE_NAME = 'wolfsource-v33';
 const URLS_TO_CACHE = [
   './',
   './index.html',
@@ -94,6 +94,7 @@ const URLS_TO_CACHE = [
   './apps/web/src/features/import/import.js',
   './packages/services/import/statement.parser.js',
   './packages/services/import/statement.local.js',
+  './packages/services/import/payslip.parser.js',
   // JS — Packages shared
   './packages/utils/helpers.js',
   './packages/ui/navigation/navigation.js',
