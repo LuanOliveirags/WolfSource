@@ -194,7 +194,7 @@ export function selectMonth(monthIndex, year) {
 }
 
 // ===== WEEK SCROLLER =====
-export function initWeekScroller() {
+export function initWeekScroller({ showAll = false } = {}) {
   const scroller = document.getElementById('weekScroller');
   if (!scroller) return;
   const today = new Date();
@@ -204,18 +204,25 @@ export function initWeekScroller() {
   weekStart.setDate(today.getDate() - dayOfWeek);
 
   const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  const html = [];
+  // Chip "Tudo": mostra o histórico completo (sem filtro de dia/mês)
+  const html = [`<button class="week-day-btn week-day-all ${showAll ? 'active' : ''}" data-date="" onclick="selectWeekDay(null)">
+      <span class="wday-name">Tudo</span><span class="wday-num"><i class="fa-solid fa-list"></i></span>
+    </button>`];
   for (let i = 0; i < 7; i++) {
     const d = new Date(weekStart);
     d.setDate(weekStart.getDate() + i);
     const dStr = toDateStr(d);
-    const isToday = dStr === todayStr;
-    html.push(`<button class="week-day-btn ${isToday ? 'active' : ''}" data-date="${dStr}" onclick="selectWeekDay('${dStr}')">
+    const isActive = !showAll && dStr === todayStr;
+    html.push(`<button class="week-day-btn ${isActive ? 'active' : ''}" data-date="${dStr}" onclick="selectWeekDay('${dStr}')">
       <span class="wday-name">${days[d.getDay()]}</span><span class="wday-num">${d.getDate()}</span>
     </button>`);
   }
   scroller.innerHTML = html.join('');
-  state.selectedDay = todayStr;
+  state.selectedDay = showAll ? null : todayStr;
+  if (showAll) {
+    const monthInput = document.getElementById('historyMonth');
+    if (monthInput) monthInput.value = '';
+  }
   requestAnimationFrame(() => {
     const active = scroller.querySelector('.week-day-btn.active');
     if (active) {
@@ -227,13 +234,17 @@ export function initWeekScroller() {
 }
 
 export function selectWeekDay(dateStr) {
-  state.selectedDay = dateStr;
-  document.querySelectorAll('.week-day-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.date === dateStr));
+  state.selectedDay = dateStr || null;
+  if (!dateStr) {
+    const monthInput = document.getElementById('historyMonth');
+    if (monthInput) monthInput.value = '';
+  }
+  document.querySelectorAll('.week-day-btn').forEach(btn => btn.classList.toggle('active', (btn.dataset.date || null) === (dateStr || null)));
   updateTransactionHistory();
 }
 
 // ===== TROCA DE ABAS =====
-export function switchTab(tabName) {
+export function switchTab(tabName, { showAll = false } = {}) {
   document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
   document.querySelectorAll('.bottom-nav-item').forEach(btn => btn.classList.remove('active'));
 
@@ -248,7 +259,7 @@ export function switchTab(tabName) {
   if (tabBtn) tabBtn.classList.add('active');
 
   if (tabName === 'dashboard') { updateDashboard(); initMonthScroller(); refreshIfStale(); }
-  else if (tabName === 'transactions') { initWeekScroller(); updateTransactionHistory(); }
+  else if (tabName === 'transactions') { initWeekScroller({ showAll }); updateTransactionHistory(); }
   else if (tabName === 'debts') { updateDebtsList(); }
   else if (tabName === 'salaries') { updateSalaryDisplay(); }
   else if (tabName === 'shopping') { openShoppingPanel(); }

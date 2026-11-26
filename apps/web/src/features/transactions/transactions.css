@@ -127,13 +127,14 @@
 .cat-vr            { --cat: var(--c-green); }
 
 /* ═══════════════ ABA TRANSAÇÕES ═══════════════ */
-/* Semana: 7 dias numa grade */
+/* Semana: chip "Tudo" + 7 dias numa grade */
 .week-scroller-wrap { margin-bottom: 16px; }
 .week-scroller {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 6px;
 }
+.week-day-all .wday-num { font-size: 0.95rem; line-height: 1.38; }
 .week-day-btn {
   display: flex;
   flex-direction: column;
