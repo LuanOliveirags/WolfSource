@@ -7,7 +7,7 @@ import { initFirebase, setRefreshCallback } from '../../../../packages/services/
 import { createDefaultAdmin, checkLoginStatus, initResetPasswordUI } from '../../../../packages/services/auth/auth.service.js';
 import { setupEventListeners, setupOnlineOfflineListeners, initMonthScroller } from '../../../../packages/ui/navigation/navigation.js';
 import { updateDashboard, setupDashboardToggle, setupKpiClickListeners, setupValuesToggle, setupSummaryToggle } from '../features/dashboard/dashboard.js';
-import { updateTransactionHistory } from '../features/transactions/transactions.js';
+import { updateTransactionHistory, setupBulkSelect } from '../features/transactions/transactions.js';
 import { updateDebtsList } from '../features/debts/debts.js';
 import { updateSalaryDisplay } from '../features/salaries/salaries.js';
 import { initNotifications, storeDebtSummaryForSW } from '../../../../packages/services/notifications/notification.service.js';
@@ -51,6 +51,7 @@ setupOnlineOfflineListeners();
 initResetPasswordUI();
 initMonthScroller();
 setupImportListeners();
+setupBulkSelect();
 
 // Operações async que dependem do Firebase (podem demorar)
 await createDefaultAdmin();
