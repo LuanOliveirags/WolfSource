@@ -15,7 +15,11 @@
 import { db, firebaseReady } from './firebase.init.js';
 import { state, getFamilyId, getFamilyStorageKey } from '../../core/state/store.js';
 import { showAlert, formatCurrency } from '../../utils/helpers.js';
-import { saveToFirebase as _saveToFirebase } from './firebase.crud.js';
+import {
+  saveToFirebase as _saveToFirebase,
+  deleteFromFirebase as _deleteFromFirebase,
+  getPendingWrites, clearPending, SYNCED_COLLECTIONS
+} from './firebase.crud.js';
 
 // ===== RE-EXPORTS (backward compat — não remover) =====
 export { db, storage, auth, firebaseReady, initFirebase } from './firebase.init.js';
@@ -28,6 +32,7 @@ let _loadingData    = false;
 let _listenersActive = false;
 let _allowRefresh   = false;
 let _lastFetchTime  = 0;
+let _reloadQueued   = false;
 
 // ===== ARMAZENAMENTO LOCAL =====
 export function saveDataToStorage() {
@@ -86,25 +91,67 @@ export function loadDataFromStorage() {
   });
 }
 
+// ===== PENDÊNCIAS =====
+// Reenvia o que não chegou ao servidor (gravações e exclusões feitas sem conexão/login).
+async function flushPendingWrites() {
+  const pending = getPendingWrites();
+  for (const [key, op] of Object.entries(pending)) {
+    const slash = key.indexOf('/');
+    const col = key.slice(0, slash);
+    const id = key.slice(slash + 1);
+    if (op === 'delete') {
+      await _deleteFromFirebase(col, id);
+    } else {
+      const item = (state[col] || []).find(x => x.id === id);
+      if (item) await _saveToFirebase(col, item);
+      else clearPending(col, id);
+    }
+  }
+}
+
+// Reconciliação única por aparelho: lançamentos que só existem aqui (de antes
+// da fila de pendências) sobem para o servidor em vez de serem descartados.
+const reconcileKey = (fid) => `wolfsource_reconciled_${fid}`;
+
 // ===== CARREGAR DO FIREBASE =====
 export async function loadDataFromFirebase() {
   if (!firebaseReady) return;
   const familyId = getFamilyId();
   if (!familyId) { console.warn('Sem familyId — dados do Firebase não serão carregados.'); return; }
   try {
-    const transSnap = await db.collection('transactions').where('familyId', '==', familyId).get();
-    state.transactions = transSnap.docs.map(d => d.data()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    await flushPendingWrites();
 
-    const debtsSnap = await db.collection('debts').where('familyId', '==', familyId).get();
-    state.debts = debtsSnap.docs.map(d => d.data()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const remote = {};
+    for (const col of SYNCED_COLLECTIONS) {
+      const snap = await db.collection(col).where('familyId', '==', familyId).get();
+      remote[col] = snap.docs.map(d => d.data());
+    }
 
-    const salSnap = await db.collection('salaries').where('familyId', '==', familyId).get();
-    state.salaries = salSnap.docs.map(d => d.data()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-
-    const shopSnap = await db.collection('shoppingLists').where('familyId', '==', familyId).get();
-    state.shoppingLists = shopSnap.docs.map(d => d.data()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    // Mescla: servidor é a fonte da verdade, mas o que ainda está pendente neste
+    // aparelho é preservado (senão seria apagado ao recarregar).
+    const pending = getPendingWrites();
+    const reconcile = !localStorage.getItem(reconcileKey(familyId));
+    const toUpload = [];
+    for (const col of SYNCED_COLLECTIONS) {
+      const remoteIds = new Set(remote[col].map(x => x.id));
+      let merged = remote[col].filter(x => pending[`${col}/${x.id}`] !== 'delete');
+      for (const item of state[col] || []) {
+        if (!item?.id || remoteIds.has(item.id)) continue;
+        const isPending = pending[`${col}/${item.id}`] === 'save';
+        if (isPending || reconcile) {
+          merged.push(item);
+          if (!isPending) toUpload.push([col, item]);
+        }
+      }
+      state[col] = merged.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    }
 
     saveDataToStorage();
+    if (reconcile) localStorage.setItem(reconcileKey(familyId), new Date().toISOString());
+    if (toUpload.length) {
+      console.info(`[Sync] Enviando ${toUpload.length} item(ns) que estavam só neste aparelho.`);
+      toUpload.forEach(([col, item]) => _saveToFirebase(col, item));
+    }
     _lastFetchTime = Date.now();
     _notifyRefresh();
   } catch (error) {
@@ -126,16 +173,22 @@ export function listenFirebaseChanges() {
   const familyId = getFamilyId();
   if (!familyId) { console.warn('⚠️ Sem familyId — listeners não serão ativados'); return; }
 
-  const debouncedLoad = () => {
-    if (_loadingData) return;
+  // Se chegar mudança durante um carregamento, recarrega de novo ao terminar
+  // (antes ela era descartada e o aparelho ficava desatualizado).
+  const runLoad = () => {
+    if (_loadingData) { _reloadQueued = true; return; }
     _loadingData = true;
+    loadDataFromFirebase().finally(() => {
+      _loadingData = false;
+      if (_reloadQueued) { _reloadQueued = false; runLoad(); }
+    });
+  };
+  const debouncedLoad = () => {
     clearTimeout(_fbSyncTimer);
-    _fbSyncTimer = setTimeout(() => {
-      loadDataFromFirebase().finally(() => { _loadingData = false; });
-    }, 500);
+    _fbSyncTimer = setTimeout(runLoad, 500);
   };
 
-  ['transactions', 'debts', 'salaries', 'shoppingLists'].forEach(col => {
+  SYNCED_COLLECTIONS.forEach(col => {
     const unsub = db.collection(col)
       .where('familyId', '==', familyId)
       .onSnapshot(debouncedLoad, err => console.error(`❌ Erro no listener de ${col}:`, err));
@@ -148,6 +201,7 @@ export function cleanupFirebaseListeners() {
   _fbListeners    = [];
   _listenersActive = false;
   _loadingData    = false;
+  _reloadQueued   = false;
   clearTimeout(_fbSyncTimer);
 }
 
