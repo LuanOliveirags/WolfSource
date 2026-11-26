@@ -18,6 +18,20 @@
                 <button class="close modal-close-btn"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <form id="salaryForm">
+                <!-- Leitura do holerite: preenche o formulário -->
+                <div class="payslip-reader">
+                    <button type="button" class="payslip-btn" id="payslipBtn">
+                        <span class="payslip-btn-icon"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+                        <span class="payslip-btn-text">
+                            <strong id="payslipBtnTitle">Ler holerite</strong>
+                            <small id="payslipBtnSub">PDF ou foto: preenche os valores para você</small>
+                        </span>
+                        <i class="fa-solid fa-chevron-right payslip-btn-arrow"></i>
+                    </button>
+                    <input type="file" id="payslipInput" accept=".pdf,application/pdf,image/*" hidden>
+                    <div class="payslip-result" id="payslipResult" hidden></div>
+                </div>
+
                 <div class="form-group">
                     <label>Tipo de entrada</label>
                     <div class="salary-type-toggle">

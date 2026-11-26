@@ -120,6 +120,68 @@
 .deduction-tag { color: var(--expense-dark); background: var(--expense-bg); }
 .addition-tag  { color: var(--income-dark); background: var(--income-bg); }
 
+/* ═══════════════ LER HOLERITE ═══════════════ */
+.payslip-reader { margin-bottom: 18px; display: flex; flex-direction: column; gap: 10px; }
+.payslip-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-card-alt);
+  text-align: left;
+  transition: border-color var(--ease), background var(--ease);
+}
+.payslip-btn:hover { border-color: var(--gold); background: rgba(var(--gold-rgb), 0.06); }
+.payslip-btn-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1B1406;
+  background: var(--grad-gold);
+  box-shadow: var(--shadow-brand);
+}
+.payslip-btn-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.payslip-btn-text strong { font-size: 0.92rem; color: var(--text-primary); }
+.payslip-btn-text small { font-size: 0.76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.payslip-btn-arrow { color: var(--text-muted); font-size: 0.8rem; }
+.payslip-btn.is-loading { cursor: progress; border-style: solid; border-color: var(--gold); }
+.payslip-btn.is-loading .payslip-btn-icon i { animation: payslipPulse 1s ease-in-out infinite; }
+@keyframes payslipPulse { 50% { opacity: 0.35; } }
+
+.payslip-result[hidden] { display: none; }
+.payslip-result { display: flex; flex-direction: column; gap: 6px; }
+.payslip-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--income-bg);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.payslip-summary > span:first-child { font-weight: var(--fw-semi); color: var(--income-dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.payslip-summary strong { color: var(--text-primary); }
+.payslip-ok { color: var(--income-dark); font-weight: var(--fw-semi); white-space: nowrap; }
+.payslip-bad { color: var(--expense-dark); font-weight: var(--fw-semi); white-space: nowrap; }
+.payslip-warning {
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: rgba(var(--gold-rgb), 0.1);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.payslip-warning i { color: var(--gold-deep); margin-right: 4px; }
+[data-theme="dark"] .payslip-warning i { color: var(--gold); }
+
 /* ═══════════════ FORMULÁRIO (modal) ═══════════════ */
 .salary-type-toggle {
   display: grid;

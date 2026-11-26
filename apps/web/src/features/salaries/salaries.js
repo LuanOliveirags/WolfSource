@@ -5,7 +5,7 @@
 // ============================================================
 
 import { state, getFamilyId } from '../../../../../packages/core/state/store.js';
-import { generateId, esc, formatCurrency, formatDate, showAlert, emptyState } from '../../../../../packages/utils/helpers.js';
+import { generateId, esc, formatCurrency, formatDate, showAlert, emptyState, toDateStr } from '../../../../../packages/utils/helpers.js';
 import { saveDataToStorage, saveToFirebase, deleteFromFirebase } from '../../../../../packages/services/firebase/firebase.service.js';
 import { updateDashboard } from '../dashboard/dashboard.js';
 import {
@@ -14,6 +14,8 @@ import {
   getSalaryMonths,
   computeSalaryStats
 } from '../../../../../packages/services/salaries/salaries.service.js';
+import { readDocumentRows } from '../../../../../packages/services/import/statement.local.js';
+import { parsePayslip } from '../../../../../packages/services/import/payslip.parser.js';
 
 // ===== ESTADO DO FORM (temporário, não persiste) =====
 let tempDeductions = [];
@@ -54,8 +56,108 @@ export function addSalary(e) {
   document.querySelectorAll('.salary-type-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('btnSalario')?.classList.add('active');
   document.getElementById('salaryModal').classList.remove('active');
+  renderPayslipResult(null);
   updateSalaryDisplay();
   updateDashboard();
+}
+
+// ===== LER HOLERITE =====
+// PDF ou foto → leitura no aparelho → preenche bruto, acréscimos, descontos, data e pessoa.
+const MONTHS_FULL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+let payslipBusy = false;
+
+function setPayslipStatus(title, sub = '') {
+  const t = document.getElementById('payslipBtnTitle');
+  const s = document.getElementById('payslipBtnSub');
+  if (t) t.textContent = title;
+  if (s) s.textContent = sub;
+}
+
+function renderPayslipResult(r) {
+  const box = document.getElementById('payslipResult');
+  if (!box) return;
+  if (!r) { box.hidden = true; box.innerHTML = ''; return; }
+
+  const count = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+  const check = r.netMatches === true
+    ? `<span class="payslip-ok"><i class="fa-solid fa-circle-check"></i> confere com o holerite</span>`
+    : r.netMatches === false
+      ? `<span class="payslip-bad"><i class="fa-solid fa-triangle-exclamation"></i> holerite diz ${formatCurrency(r.totals.liquido)}</span>`
+      : '';
+  const warnings = [...r.warnings];
+  if (r.ocr) warnings.unshift('Lido por reconhecimento de texto: confira os valores antes de registrar.');
+
+  box.innerHTML = `
+    <div class="payslip-summary">
+      <span><i class="fa-solid fa-file-circle-check"></i> ${esc(r.fileName)}</span>
+      <span>${esc(r.grossLabel || 'Salário')}: <strong>${formatCurrency(r.gross)}</strong> · ${count(r.additions.length, 'acréscimo', 'acréscimos')} · ${count(r.deductions.length, 'desconto', 'descontos')}</span>
+      <span>Líquido calculado: <strong>${formatCurrency(r.computedNet)}</strong> ${check}</span>
+    </div>
+    ${warnings.map(w => `<p class="payslip-warning"><i class="fa-solid fa-circle-info"></i> ${esc(w)}</p>`).join('')}`;
+  box.hidden = false;
+}
+
+function applyPayslip(r) {
+  // Tipo: salário
+  document.getElementById('salaryType').value = 'salario';
+  document.querySelectorAll('.salary-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'salario'));
+
+  // Pessoa reconhecida pelo nome no holerite
+  const personSel = document.getElementById('salaryPerson');
+  if (r.person && personSel && [...personSel.options].some(o => o.value === r.person)) personSel.value = r.person;
+
+  document.getElementById('salaryAmount').value = r.gross.toFixed(2);
+
+  // Data: a de pagamento do holerite; senão mantém a do formulário (ou hoje)
+  const dateEl = document.getElementById('salaryDate');
+  if (r.payDate) dateEl.value = r.payDate;
+  else if (!dateEl.value) dateEl.value = toDateStr(new Date());
+
+  const descEl = document.getElementById('salaryDescription');
+  descEl.value = r.competencia
+    ? `Salário ${MONTHS_FULL[r.competencia.month - 1]}/${r.competencia.year}`
+    : (descEl.value || 'Salário (holerite)');
+
+  tempAdditions = r.additions.map(a => ({ id: generateId(), name: a.name, value: a.value }));
+  tempDeductions = r.deductions.map(d => ({ id: generateId(), name: d.name, value: d.value }));
+  updateAdditionsUI();
+  updateDeductionsUI();
+
+  // Abre as seções preenchidas para conferência
+  [['additionsBody', 'toggleAdditionsBtn', tempAdditions], ['deductionsBody', 'toggleDeductionsBtn', tempDeductions]]
+    .forEach(([bodyId, btnId, list]) => {
+      const body = document.getElementById(bodyId);
+      if (!body || !list.length) return;
+      body.classList.add('open');
+      const chevron = document.getElementById(btnId)?.querySelector('.deductions-chevron');
+      if (chevron) chevron.style.transform = 'rotate(180deg)';
+    });
+}
+
+async function handlePayslipFile(file) {
+  if (!file || payslipBusy) return;
+  payslipBusy = true;
+  const btn = document.getElementById('payslipBtn');
+  btn?.classList.add('is-loading');
+  setPayslipStatus('Lendo holerite…', file.name);
+  try {
+    const { rows, ocr } = await readDocumentRows(file, setPayslipStatus);
+    const r = parsePayslip(rows, { memberNames: (state.familyMembers || []).map(m => m.name) });
+    if (!r.gross) throw new Error(r.warnings[0] || 'Não consegui ler os valores deste holerite.');
+    applyPayslip(r);
+    renderPayslipResult({ ...r, ocr, fileName: file.name });
+    showAlert('Holerite lido! Confira os valores e toque em Registrar.', 'success');
+  } catch (err) {
+    console.error('[Holerite] Falha na leitura:', err);
+    renderPayslipResult(null);
+    showAlert(err.message || 'Não consegui ler este holerite.', 'danger');
+  } finally {
+    payslipBusy = false;
+    btn?.classList.remove('is-loading');
+    setPayslipStatus('Ler outro holerite', 'PDF ou foto: preenche os valores para você');
+    const input = document.getElementById('payslipInput');
+    if (input) input.value = '';
+  }
 }
 
 // ===== DELETAR SALÁRIO =====
@@ -174,6 +276,12 @@ export function setupDeductionListeners() {
   document.getElementById('addDeductionBtn')?.addEventListener('click', addDeduction);
 
   document.getElementById('salaryAmount')?.addEventListener('input', updateNetSalaryPreview);
+
+  // Holerite
+  document.getElementById('payslipBtn')?.addEventListener('click', () => {
+    if (!payslipBusy) document.getElementById('payslipInput')?.click();
+  });
+  document.getElementById('payslipInput')?.addEventListener('change', (e) => handlePayslipFile(e.target.files[0]));
 }
 
 // ===== DISPLAY PRINCIPAL =====
