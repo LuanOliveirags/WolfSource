@@ -72,6 +72,64 @@
 .import-tip i { color: var(--gold-deep); margin-right: 4px; }
 [data-theme="dark"] .import-tip i { color: var(--gold); }
 
+/* Importações anteriores (remover lote) */
+.import-history { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+.import-history[hidden] { display: none; }
+.import-history-title {
+  font-size: 0.72rem;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.import-history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-card);
+}
+.import-history-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-plum);
+  background: color-mix(in srgb, var(--c-plum) 14%, transparent);
+}
+.import-history-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.import-history-name {
+  font-size: 0.88rem;
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.import-history-meta { font-size: 0.76rem; color: var(--text-muted); }
+.import-history-remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--r-full);
+  border: 1px solid transparent;
+  background: var(--expense-bg);
+  color: var(--expense-dark);
+  font-size: 0.8rem;
+  font-weight: var(--fw-semi);
+  cursor: pointer;
+  transition: border-color var(--ease), opacity var(--ease);
+}
+.import-history-remove:hover { border-color: var(--expense); }
+.import-history-remove:disabled { opacity: 0.6; cursor: default; }
+
 /* ═══════════════ PASSO 2 — LENDO ═══════════════ */
 .import-loading { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 20px; text-align: center; }
 .import-loading-title { font-weight: var(--fw-bold); color: var(--text-primary); }
