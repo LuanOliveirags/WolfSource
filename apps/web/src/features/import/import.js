@@ -8,8 +8,8 @@
 
 import { CATEGORY_MAP } from '../../../../../packages/services/firebase/firebase.config.js';
 import { state, getFamilyId } from '../../../../../packages/core/state/store.js';
-import { esc, formatCurrency, showAlert } from '../../../../../packages/utils/helpers.js';
-import { saveDataToStorage, saveToFirebase } from '../../../../../packages/services/firebase/firebase.service.js';
+import { esc, formatCurrency, showAlert, generateId } from '../../../../../packages/utils/helpers.js';
+import { saveDataToStorage, saveToFirebase, deleteFromFirebase } from '../../../../../packages/services/firebase/firebase.service.js';
 import { buildTransactionObject } from '../../../../../packages/services/transactions/transactions.service.js';
 import {
   decodeBytes, parseOFX, parseCSVRows, parseTableRows, detectFileKind,
@@ -46,6 +46,93 @@ function resetImport() {
   const input = $('importFileInput'); if (input) input.value = '';
   const cam = $('importCameraInput'); if (cam) cam.value = '';
   showStep('upload');
+  renderImportHistory();
+}
+
+// ───────────────────────── Importações anteriores ─────────────────────────
+
+// Chave do lote: importações novas têm importBatch; as antigas são agrupadas
+// pela origem + minuto em que foram gravadas (todas do mesmo lote juntas).
+function batchKey(t) {
+  if (t.importBatch) return t.importBatch;
+  return `legacy|${t.importSource || ''}|${(t.createdAt || '').slice(0, 16)}`;
+}
+
+function getImportBatches() {
+  const batches = new Map();
+  for (const t of state.transactions) {
+    if (!t.importRef && !t.importBatch) continue;
+    const key = batchKey(t);
+    if (!batches.has(key)) {
+      batches.set(key, {
+        key,
+        fileName: t.importFile || '',
+        source: t.importSource || '',
+        bank: t.importBank || '',
+        createdAt: t.createdAt || '',
+        items: []
+      });
+    }
+    batches.get(key).items.push(t);
+  }
+  return [...batches.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+const fmtShort = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().slice(0, 2).join('/') : '');
+const fmtFull = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '');
+
+function renderImportHistory() {
+  const box = $('importHistory');
+  if (!box) return;
+  const batches = getImportBatches();
+  box.hidden = batches.length === 0;
+  if (!batches.length) { box.innerHTML = ''; return; }
+
+  box.innerHTML = `
+    <p class="import-history-title">Importações anteriores</p>
+    ${batches.map(b => {
+      const dates = b.items.map(t => t.date).filter(Boolean).sort();
+      const period = dates.length
+        ? (dates[0] === dates[dates.length - 1] ? fmtShort(dates[0]) : `${fmtShort(dates[0])} a ${fmtShort(dates[dates.length - 1])}`)
+        : '';
+      const name = b.fileName || `Extrato ${[b.source, b.bank].filter(Boolean).join(' · ') || 'importado'}`;
+      const count = b.items.length;
+      const meta = [
+        `${count} lançamento${count === 1 ? '' : 's'}`,
+        period,
+        b.createdAt ? `importado em ${fmtFull(b.createdAt)}` : ''
+      ].filter(Boolean).join(' · ');
+      return `
+        <div class="import-history-item">
+          <span class="import-history-icon"><i class="fa-regular fa-file-lines"></i></span>
+          <div class="import-history-info">
+            <span class="import-history-name">${esc(name)}</span>
+            <span class="import-history-meta">${esc(meta)}</span>
+          </div>
+          <button type="button" class="import-history-remove" data-batch="${esc(b.key)}" title="Remover os lançamentos desta importação">
+            <i class="fa-solid fa-trash"></i> <span class="hide-sm">Remover</span>
+          </button>
+        </div>`;
+    }).join('')}`;
+}
+
+async function removeImportBatch(key, btn) {
+  const batch = getImportBatches().find(b => b.key === key);
+  if (!batch) return;
+  const count = batch.items.length;
+  const name = batch.fileName || 'esta importação';
+  if (!confirm(`Remover ${count} lançamento${count === 1 ? '' : 's'} importado${count === 1 ? '' : 's'} de "${name}"?\n\nIsso não pode ser desfeito.`)) return;
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="loading-spinner"></span>'; }
+  const ids = new Set(batch.items.map(t => t.id));
+  state.transactions = state.transactions.filter(t => !ids.has(t.id));
+  saveDataToStorage();
+  await Promise.allSettled([...ids].map(id => deleteFromFirebase('transactions', id)));
+
+  updateDashboard();
+  updateTransactionHistory();
+  renderImportHistory();
+  showAlert(`${count} lançamento${count === 1 ? '' : 's'} removido${count === 1 ? '' : 's'}.`, 'success');
 }
 
 function showStep(step) {
@@ -257,6 +344,7 @@ async function confirmImport() {
   const responsible = $('importResponsible').value || state.currentUser?.fullName || 'Família';
   const paymentChoice = $('importPayment').value;
   const occurrences = new Map();
+  const batchId = `imp-${generateId()}`;
 
   const transactions = selected.map(r => {
     const baseKey = `${r.date}|${r.type}|${r.amount.toFixed(2)}|${r.description}`;
@@ -274,7 +362,10 @@ async function confirmImport() {
         familyId
       }),
       importRef: r.ref || buildImportRef(r, n),
-      importSource: sourceInfo.source
+      importSource: sourceInfo.source,
+      importBatch: batchId,
+      importFile: sourceInfo.fileName,
+      importBank: sourceInfo.bank || ''
     };
   });
 
@@ -332,6 +423,11 @@ export function setupImportListeners() {
   $('importInvertBtn').addEventListener('click', invertAll);
   $('importBackBtn').addEventListener('click', resetImport);
   $('importConfirmBtn').addEventListener('click', confirmImport);
+
+  $('importHistory')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.import-history-remove');
+    if (btn && !btn.disabled) removeImportBatch(btn.dataset.batch, btn);
+  });
 }
 
 window.openImportModal = openImportModal;

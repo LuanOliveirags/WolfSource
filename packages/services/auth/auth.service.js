@@ -39,13 +39,21 @@ export async function signInWithFirebase(userId, familyId) {
     }
     if (!res.ok) {
       console.warn('[Auth] Falha ao obter custom token:', res.status);
+      _warnAuthFailed();
       return;
     }
     const { token } = await res.json();
     await auth.signInWithCustomToken(token);
   } catch (e) {
     console.warn('[Auth] signInWithFirebase falhou (não bloqueia login):', e);
+    _warnAuthFailed();
   }
+}
+
+// Sem o login no Firebase, nada é lido nem gravado no servidor: avisa em vez de falhar em silêncio.
+function _warnAuthFailed() {
+  if (auth?.currentUser) return; // sessão anterior ainda válida: segue sincronizando
+  showAlert('Não consegui conectar ao servidor. Os dados deste aparelho não estão sincronizando. Verifique a internet ou atualize o app.', 'warning');
 }
 
 // Aguarda o Firebase restaurar a sessão persistida do storage (uma vez só).
