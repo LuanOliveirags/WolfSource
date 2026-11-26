@@ -437,7 +437,8 @@ button { border: none; cursor: pointer; background: none; font: inherit; color: 
   overflow-x: clip;
   padding: calc(var(--header-h) + env(safe-area-inset-top, 0px)) 0 calc(var(--dock-h) + 40px + env(safe-area-inset-bottom, 0px));
   background: var(--bg);
-  -webkit-overflow-scrolling: touch;
+  /* Sem -webkit-overflow-scrolling: no iOS ele cria um contexto de empilhamento
+     e os modais (que ficam aqui dentro) passavam a ficar ATRÁS da barra inferior. */
   overscroll-behavior-x: none;
 }
 .main-content > .alert { margin: 16px 20px 0; }
