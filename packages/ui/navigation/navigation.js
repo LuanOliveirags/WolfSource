@@ -640,16 +640,7 @@ export function setupEventListeners() {
   // Resize handler for charts
   window.addEventListener('resize', () => {
     if (document.querySelector('.tab-content.active')?.id === 'dashboard') {
-      const monthVal = document.getElementById('monthFilter').value;
-      let month, year;
-      if (monthVal) { const p = monthVal.split('-'); year = parseInt(p[0]); month = parseInt(p[1]) - 1; }
-      else { const n = new Date(); month = n.getMonth(); year = n.getFullYear(); }
-      const monthTransactions = state.transactions.filter(t => {
-        const tDate = new Date(t.date + 'T12:00:00');
-        return tDate.getMonth() === month && tDate.getFullYear() === year;
-      });
-      const monthDebts = state.debts.filter(d => d.status === 'active');
-      updateCharts(monthTransactions, monthDebts);
+      updateDashboard();
     }
   });
 

@@ -4,12 +4,35 @@
 /* global Chart */
 
 import { CATEGORY_MAP } from '../../../../../packages/services/firebase/firebase.config.js';
-import { state } from '../../../../../packages/core/state/store.js';
-import { formatCurrency } from '../../../../../packages/utils/helpers.js';
+import { state, getFamilyId } from '../../../../../packages/core/state/store.js';
+import { formatCurrency, showAlert } from '../../../../../packages/utils/helpers.js';
+import { saveDataToStorage, saveToFirebase, deleteFromFirebase } from '../../../../../packages/services/firebase/firebase.service.js';
+import {
+  buildBalanceCheckpointObject,
+  computeMonthAccountBalance,
+  getCheckpointValue
+} from '../../../../../packages/services/transactions/transactions.service.js';
 import { updateRecentTransactions } from '../transactions/transactions.js';
 
 // ===== DASHBOARD MODE STATE =====
 let dashboardMode = 'geral'; // 'geral' | 'vr'
+const round2 = (n) => Math.round(n * 100) / 100;
+
+function getSelectedYearMonth() {
+  const monthVal = document.getElementById('monthFilter')?.value;
+  if (monthVal) {
+    const parts = monthVal.split('-');
+    return { year: parseInt(parts[0]), month: parseInt(parts[1]) - 1 };
+  }
+  const now = new Date();
+  return { year: now.getFullYear(), month: now.getMonth() };
+}
+
+function formatSignedCurrency(val) {
+  if (val > 0.004) return `+${formatCurrency(val)}`;
+  if (val < -0.004) return `−${formatCurrency(Math.abs(val))}`;
+  return formatCurrency(0);
+}
 
 // ===== KPI CARD CLICK → NAVIGATE + FILTER =====
 export function setupKpiClickListeners() {
@@ -113,21 +136,130 @@ export function setupSummaryToggle() {
   btn.addEventListener('click', () => setCollapsed(!panel.classList.contains('collapsed')));
 }
 
+// ===== AJUSTAR SALDO EM CONTA =====
+export function setupBalanceAdjustment() {
+  const openBtn = document.getElementById('adjustBalanceBtn');
+  const modal = document.getElementById('adjustBalanceModal');
+  const closeBtn = document.getElementById('adjustBalanceCloseBtn');
+  const form = document.getElementById('adjustBalanceForm');
+  const input = document.getElementById('adjustBalanceInput');
+  const resetBtn = document.getElementById('removeBalanceAdjustBtn');
+  if (!openBtn || !modal || !form || !input) return;
+
+  const close = () => modal.classList.remove('active');
+  closeBtn?.addEventListener('click', close);
+
+  openBtn.addEventListener('click', () => {
+    const { year, month } = getSelectedYearMonth();
+    const isVR = dashboardMode === 'vr';
+    const mode = isVR ? 'vr' : 'geral';
+    const info = computeMonthAccountBalance(state.transactions, state.salaries, year, month, mode);
+    const monthName = new Date(year, month, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+    const titleEl = document.getElementById('adjustBalanceModalTitle');
+    if (titleEl) {
+      titleEl.innerHTML = isVR
+        ? '<i class="fa-solid fa-utensils"></i> Ajustar saldo VR / VA'
+        : '<i class="fa-solid fa-scale-balanced"></i> Ajustar saldo em conta';
+    }
+    const labelEl = document.getElementById('adjustBalanceLabel');
+    if (labelEl) labelEl.textContent = `Saldo em ${monthName} (R$)`;
+
+    input.value = info.closingBalance.toFixed(2);
+    if (resetBtn) resetBtn.hidden = !info.hasCheckpoint;
+    modal.classList.add('active');
+    setTimeout(() => { input.focus(); input.select(); }, 60);
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const familyId = getFamilyId();
+    if (!familyId) { showAlert('Erro: família não identificada.', 'danger'); return; }
+    const target = parseFloat(input.value);
+    if (!Number.isFinite(target)) { showAlert('Informe um valor válido.', 'warning'); return; }
+
+    const { year, month } = getSelectedYearMonth();
+    const mm = String(month + 1).padStart(2, '0');
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthStart = `${year}-${mm}-01`;
+    const monthEnd = `${year}-${mm}-${String(daysInMonth).padStart(2, '0')}`;
+    const isVR = dashboardMode === 'vr';
+    const mode = isVR ? 'vr' : 'geral';
+
+    const info = computeMonthAccountBalance(state.transactions, state.salaries, year, month, mode);
+    const neededOpening = round2(target - info.monthNet);
+
+    // Substitui qualquer marco de saldo dentro deste mesmo mês para o modo atual
+    const staleIds = state.transactions
+      .filter(t =>
+        t.isBalanceAdjustment &&
+        t.date >= monthStart &&
+        t.date <= monthEnd &&
+        (isVR ? t.paymentMethod === 'vr' : t.paymentMethod !== 'vr')
+      )
+      .map(t => t.id);
+
+    if (staleIds.length) {
+      const idSet = new Set(staleIds);
+      state.transactions = state.transactions.filter(t => !idSet.has(t.id));
+      await Promise.allSettled(staleIds.map(id => deleteFromFirebase('transactions', id)));
+    }
+
+    const cp = buildBalanceCheckpointObject({
+      checkpointBalance: neededOpening,
+      date: monthStart,
+      responsible: state.currentUser?.fullName || 'Família',
+      description: 'Ajuste manual de saldo em conta',
+      paymentMethod: isVR ? 'vr' : 'conta',
+      familyId,
+      source: 'manual'
+    });
+
+    state.transactions.push(cp);
+    saveDataToStorage();
+    await saveToFirebase('transactions', cp);
+
+    close();
+    updateDashboard();
+    showAlert(`Saldo ajustado para ${formatCurrency(round2(target))}!`, 'success');
+  });
+
+  resetBtn?.addEventListener('click', async () => {
+    const { year, month } = getSelectedYearMonth();
+    const mm = String(month + 1).padStart(2, '0');
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthEnd = `${year}-${mm}-${String(daysInMonth).padStart(2, '0')}`;
+    const isVR = dashboardMode === 'vr';
+    if (!confirm('Remover os ajustes/saldos iniciais anteriores e mostrar apenas Receita − Despesa do mês?')) return;
+
+    const removeIds = state.transactions
+      .filter(t =>
+        t.isBalanceAdjustment &&
+        t.date <= monthEnd &&
+        (isVR ? t.paymentMethod === 'vr' : t.paymentMethod !== 'vr')
+      )
+      .map(t => t.id);
+
+    if (removeIds.length) {
+      const idSet = new Set(removeIds);
+      state.transactions = state.transactions.filter(t => !idSet.has(t.id));
+      saveDataToStorage();
+      await Promise.allSettled(removeIds.map(id => deleteFromFirebase('transactions', id)));
+    }
+
+    close();
+    updateDashboard();
+    showAlert('Cálculo voltou a usar apenas as movimentações do mês.', 'info');
+  });
+}
+
 // ===== ATUALIZAR DASHBOARD =====
 export function updateDashboard() {
-  const monthVal = document.getElementById('monthFilter').value;
-  let month, year;
-  if (monthVal) {
-    const parts = monthVal.split('-');
-    year = parseInt(parts[0]);
-    month = parseInt(parts[1]) - 1;
-  } else {
-    const now = new Date();
-    month = now.getMonth();
-    year = now.getFullYear();
-  }
+  const { year, month } = getSelectedYearMonth();
 
-  const monthTransactions = state.transactions.filter(t => {
+  const realTransactions = state.transactions.filter(t => !t.isBalanceAdjustment);
+
+  const monthTransactions = realTransactions.filter(t => {
     const tDate = new Date(t.date + 'T12:00:00');
     return tDate.getMonth() === month && tDate.getFullYear() === year;
   });
@@ -149,7 +281,11 @@ export function updateDashboard() {
   const totalTransactionIncome = generalTransactions.filter(t => t.type === 'entrada').reduce((sum, t) => sum + t.amount, 0);
   const totalSalaryIncome = generalSalaries.reduce((sum, s) => sum + s.amount, 0);
   const totalIncome = totalTransactionIncome + totalSalaryIncome;
-  const totalBalance = totalIncome - totalExpenses;
+
+  const generalBalanceInfo = computeMonthAccountBalance(state.transactions, state.salaries, year, month, 'geral');
+  const vrBalanceInfo = computeMonthAccountBalance(state.transactions, state.salaries, year, month, 'vr');
+
+  const totalBalance = generalBalanceInfo.closingBalance;
   const totalDebt = monthDebts.reduce((sum, d) => sum + d.amount, 0);
   const responsibleCount = new Set(monthTransactions.map(t => t.responsible)).size;
 
@@ -169,7 +305,7 @@ export function updateDashboard() {
     return sum + (d.amount - (instVal * (d.paidInstallments || 0)));
   }, 0);
 
-  const paidDebtsThisMonth = state.transactions.filter(t => {
+  const paidDebtsThisMonth = realTransactions.filter(t => {
     if (!t.fromDebt) return false;
     const tDate = new Date(t.date + 'T12:00:00');
     return tDate.getMonth() === month && tDate.getFullYear() === year;
@@ -180,7 +316,7 @@ export function updateDashboard() {
   // VR/VA values (always computed)
   const vrIncomeTotal = vrSalaries.reduce((sum, s) => sum + s.amount, 0);
   const vrExpenseTotal = vrTransactions.filter(t => t.type === 'saida').reduce((sum, t) => sum + t.amount, 0);
-  const vrBalanceVal = vrIncomeTotal - vrExpenseTotal;
+  const vrBalanceVal = vrBalanceInfo.closingBalance;
 
   const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
 
@@ -202,8 +338,8 @@ export function updateDashboard() {
     el('vrMaxExpense', formatCurrency(vrMax));
     el('vrUsagePercent', `${vrPct.toFixed(0)}%`);
 
-    // Charts & recents use VR data only
-    updateCharts(vrTransactions, [], vrSalaries);
+    updateCarryInfo(vrBalanceInfo);
+    updateCharts(vrTransactions, [], vrSalaries, vrBalanceInfo);
     updateRecentTransactions(vrTransactions);
 
   } else {
@@ -228,9 +364,10 @@ export function updateDashboard() {
     el('vrExpense', formatCurrency(vrExpenseTotal));
     el('vrBalance', formatCurrency(vrBalanceVal));
     const vrCard = document.getElementById('vrDashboardCard');
-    if (vrCard) vrCard.style.display = (vrIncomeTotal > 0 || vrExpenseTotal > 0) ? '' : 'none';
+    if (vrCard) vrCard.style.display = (vrIncomeTotal > 0 || vrExpenseTotal > 0 || vrBalanceInfo.hasCheckpoint) ? '' : 'none';
 
-    updateCharts(generalTransactions, monthDebts, generalSalaries);
+    updateCarryInfo(generalBalanceInfo);
+    updateCharts(generalTransactions, monthDebts, generalSalaries, generalBalanceInfo);
     updateRecentTransactions(monthTransactions);
   }
 
@@ -242,13 +379,16 @@ export function updateDashboard() {
 
   // Update balance label
   const balanceLabel = document.querySelector('.balance-label');
-  if (balanceLabel) balanceLabel.textContent = dashboardMode === 'vr' ? 'Saldo VR / VA' : 'Saldo líquido';
+  if (balanceLabel) {
+    if (isVRMode) balanceLabel.textContent = 'Saldo VR / VA';
+    else balanceLabel.textContent = generalBalanceInfo.hasCheckpoint ? 'Saldo em conta' : 'Saldo líquido';
+  }
 
   // Dynamic balance pulse — card "breathes" based on financial health
   const balanceCard = document.querySelector('.balance-card');
   if (balanceCard) {
     balanceCard.classList.remove('positive-pulse', 'negative-pulse');
-    const bal = dashboardMode === 'vr' ? vrBalanceVal : totalBalance;
+    const bal = isVRMode ? vrBalanceVal : totalBalance;
     if (bal > 0) balanceCard.classList.add('positive-pulse');
     else if (bal < 0) balanceCard.classList.add('negative-pulse');
   }
@@ -260,6 +400,22 @@ export function updateDashboard() {
     void balanceEl.offsetWidth; // force reflow
     balanceEl.classList.add('value-updated');
   }
+}
+
+function updateCarryInfo(balanceInfo) {
+  const carryEl = document.getElementById('balanceCarryInfo');
+  if (!carryEl) return;
+  if (!balanceInfo?.hasCheckpoint) {
+    carryEl.hidden = true;
+    carryEl.innerHTML = '';
+    return;
+  }
+  const prevLabel = balanceInfo.intraMonthCheckpoint ? 'Saldo inicial' : 'Saldo anterior';
+  const prevVal = balanceInfo.intraMonthCheckpoint
+    ? getCheckpointValue(balanceInfo.intraMonthCheckpoint)
+    : balanceInfo.carryOver;
+  carryEl.innerHTML = `${prevLabel}: <strong>${formatCurrency(prevVal)}</strong> · No mês: <strong>${formatSignedCurrency(balanceInfo.monthNet)}</strong>`;
+  carryEl.hidden = false;
 }
 
 // ===== MEDIDOR DO HERO =====
@@ -311,27 +467,25 @@ function tooltipOptions(theme) {
 }
 
 // ===== ATUALIZAR GRÁFICOS =====
-export function updateCharts(transactions, debts, salaries = []) {
+export function updateCharts(transactions, debts, salaries = [], balanceInfo = null) {
   Object.values(state.charts).forEach(chart => { if (chart) chart.destroy(); });
   state.charts = {};
+  const cleanTx = (transactions || []).filter(t => !t.isBalanceAdjustment);
   const theme = chartTheme();
   applyChartDefaults(theme);
-  state.charts.sparkline = createBalanceSparkline(transactions, salaries);
-  state.charts.category = createCategoryChart(transactions, theme);
-  state.charts.responsible = createResponsibleChart(transactions, theme);
+  state.charts.sparkline = createBalanceSparkline(cleanTx, salaries, balanceInfo);
+  state.charts.category = createCategoryChart(cleanTx, theme);
+  state.charts.responsible = createResponsibleChart(cleanTx, theme);
   state.charts.debtType = createDebtTypeChart(debts, theme);
 }
 
 // ===== SPARKLINE =====
-// Saldo acumulado dia a dia (transações + salários), coerente com o número do hero.
-function createBalanceSparkline(transactions, salaries = []) {
+// Saldo acumulado dia a dia (saldo anterior + transações + salários), coerente com o número do hero.
+function createBalanceSparkline(transactions, salaries = [], balanceInfo = null) {
   const ctx = document.getElementById('monthlyChart');
   if (!ctx) return null;
 
-  const monthVal = document.getElementById('monthFilter').value;
-  let month, year;
-  if (monthVal) { const p = monthVal.split('-'); year = parseInt(p[0]); month = parseInt(p[1]) - 1; }
-  else { const n = new Date(); month = n.getMonth(); year = n.getFullYear(); }
+  const { year, month } = getSelectedYearMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const dailyNet = Array(daysInMonth).fill(0);
@@ -346,10 +500,18 @@ function createBalanceSparkline(transactions, salaries = []) {
     if (d.getMonth() === month && d.getFullYear() === year) dailyNet[d.getDate() - 1] += s.amount;
   });
 
-  let cum = 0;
-  const cumData = dailyNet.map(v => { cum += v; return cum; });
+  const intraCp = balanceInfo?.intraMonthCheckpoint;
+  const intraDay = intraCp ? parseInt(intraCp.date.slice(8, 10), 10) : null;
+  const intraBase = intraCp ? getCheckpointValue(intraCp) : 0;
+
+  let cum = intraCp ? (balanceInfo?.carryOver || 0) : (balanceInfo?.carryOver || 0);
+  const cumData = dailyNet.map((v, idx) => {
+    if (intraDay && idx + 1 === intraDay) cum = intraBase;
+    cum = round2(cum + v);
+    return cum;
+  });
   const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  if (!cumData.some(v => v !== 0)) { ctx.style.display = 'none'; return null; }
+  if (!cumData.some(v => v !== 0) && !dailyNet.some(v => v !== 0)) { ctx.style.display = 'none'; return null; }
   ctx.style.display = '';
 
   const isVR = dashboardMode === 'vr';

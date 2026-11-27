@@ -39,8 +39,14 @@
     <!-- Hero: saldo + receita/despesa + evolução -->
     <div class="balance-card">
         <div class="balance-main">
-            <p class="balance-label">Saldo líquido</p>
+            <div class="balance-label-row">
+                <p class="balance-label">Saldo líquido</p>
+                <button type="button" class="balance-adjust-btn" id="adjustBalanceBtn" title="Ajustar o saldo real em conta">
+                    <i class="fa-solid fa-sliders"></i> Ajustar saldo
+                </button>
+            </div>
             <h1 class="balance-amount" id="totalBalance">R$ 0,00</h1>
+            <p class="balance-carry-info" id="balanceCarryInfo" hidden></p>
             <div class="balance-meter">
                 <div class="balance-meter-track"><span class="balance-meter-fill" id="balanceMeterFill"></span></div>
                 <p class="balance-meter-caption" id="balanceMeterCaption">Sem movimentações no mês</p>
@@ -231,3 +237,30 @@
         </div>
     </div>
 </section>
+
+<!-- Modal: Ajustar saldo em conta -->
+<div id="adjustBalanceModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="adjustBalanceModalTitle"><i class="fa-solid fa-scale-balanced"></i> Ajustar saldo em conta</h3>
+            <button type="button" class="modal-close-btn" id="adjustBalanceCloseBtn" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="adjustBalanceForm" class="form-container">
+            <p class="adjust-balance-help" id="adjustBalanceHelp">
+                Informe o saldo real da conta ao final deste mês (por exemplo, o <strong>Saldo final</strong> do extrato bancário). O app reconcilia o saldo anterior automaticamente e mantém a continuidade nos próximos meses.
+            </p>
+            <div class="form-group">
+                <label for="adjustBalanceInput" id="adjustBalanceLabel">Saldo em conta (R$)</label>
+                <input type="number" id="adjustBalanceInput" step="0.01" inputmode="decimal" placeholder="0,00" required>
+            </div>
+            <div class="adjust-balance-actions">
+                <button type="button" class="btn-secondary adjust-balance-reset" id="removeBalanceAdjustBtn" hidden>
+                    <i class="fa-solid fa-rotate-left"></i> Voltar ao cálculo só do mês
+                </button>
+                <button type="submit" class="btn-primary">
+                    <i class="fa-solid fa-check"></i> Salvar saldo
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

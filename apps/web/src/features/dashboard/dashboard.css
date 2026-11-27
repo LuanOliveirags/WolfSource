@@ -123,6 +123,13 @@
 }
 
 .balance-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.balance-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .balance-label {
   font-size: 0.72rem;
   font-weight: var(--fw-semi);
@@ -130,6 +137,47 @@
   text-transform: uppercase;
   color: var(--gold);
 }
+.balance-adjust-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  font-size: 0.72rem;
+  font-weight: var(--fw-semi);
+  color: var(--ink-text-2);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--ink-line);
+  cursor: pointer;
+  transition: background var(--ease), color var(--ease), border-color var(--ease);
+}
+.balance-adjust-btn:hover {
+  color: var(--ink-text);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.balance-carry-info {
+  font-size: 0.8rem;
+  color: var(--ink-text-2);
+  margin-top: 2px;
+}
+.balance-carry-info[hidden] { display: none !important; }
+.balance-carry-info strong { color: var(--ink-text); font-weight: var(--fw-semi); }
+
+.adjust-balance-help {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.adjust-balance-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.adjust-balance-reset { width: 100%; justify-content: center; }
+.adjust-balance-reset[hidden] { display: none !important; }
 .balance-amount {
   font-family: var(--font-display);
   font-size: clamp(2.3rem, 9vw, 3.6rem);
@@ -428,6 +476,7 @@
 
 /* ═══════════════ OCULTAR VALORES ═══════════════ */
 .values-hidden .balance-amount,
+.values-hidden .balance-carry-info,
 .values-hidden .ie-value,
 .values-hidden .kpi-mini-val,
 .values-hidden .kpi-mini-sub,

@@ -3,7 +3,7 @@
 // Sem dependências de DOM. Importável por qualquer camada (web, testes, mobile).
 // ============================================================
 
-import { state, getFamilyId } from '../../core/state/store.js';
+import { state } from '../../core/state/store.js';
 import { generateId, toDateStr } from '../../utils/helpers.js';
 
 // ===== CATÁLOGOS =====
@@ -71,6 +71,103 @@ export const QUICK_ITEMS = [
   { name: 'Ração',            category: 'pets',       unit: 'kg'  }
 ];
 
+export const MONTHS_PT_FULL = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+export function normalizeItemName(str) {
+  return String(str || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Monta o catálogo de "Adicionar rápido" e autocomplete unindo:
+ * 1) Todos os itens já cadastrados pelo usuário em qualquer mercado (priorizando o mercado atual e listas principais)
+ * 2) Sugestões padrão de QUICK_ITEMS que ainda não estejam nos itens cadastrados
+ */
+export function buildQuickCatalog(lists = [], activeStore = null) {
+  const byKey = new Map();
+
+  // Ordena do mais recente/principal para o mais antigo
+  const orderedLists = [...(lists || [])].sort((a, b) => {
+    const ta = a.updatedAt || a.createdAt || '';
+    const tb = b.updatedAt || b.createdAt || '';
+    return tb.localeCompare(ta);
+  });
+
+  for (const list of orderedLists) {
+    if (!list?.items?.length) continue;
+    const isSameStore = Boolean(activeStore && activeStore !== 'outro' && list.store === activeStore);
+    for (const item of list.items) {
+      const cleanName = String(item?.name || '').trim();
+      const key = normalizeItemName(cleanName);
+      if (!key) continue;
+
+      const existing = byKey.get(key);
+      if (!existing) {
+        byKey.set(key, {
+          name: cleanName,
+          category: item.category || 'outros',
+          unit: item.unit || 'un',
+          quantity: item.quantity && item.quantity > 0 ? item.quantity : 1,
+          price: item.price !== undefined && item.price !== null && item.price !== '' ? Number(item.price) : null,
+          store: list.store || 'outro',
+          stores: new Set([list.store || 'outro']),
+          sameStore: isSameStore,
+          fromPrincipal: Boolean(list.isPrincipal),
+          fromUser: true
+        });
+      } else {
+        existing.stores.add(list.store || 'outro');
+        if (list.isPrincipal) existing.fromPrincipal = true;
+        // Se encontrarmos versão do mesmo mercado aberto, usa a unidade/qtd/preço daquele mercado
+        if (isSameStore && !existing.sameStore) {
+          existing.sameStore = true;
+          existing.store = list.store;
+          existing.category = item.category || existing.category;
+          existing.unit = item.unit || existing.unit;
+          existing.quantity = item.quantity && item.quantity > 0 ? item.quantity : existing.quantity;
+          if (item.price !== undefined && item.price !== null && item.price !== '') {
+            existing.price = Number(item.price);
+          }
+        } else if (existing.price === null && item.price !== undefined && item.price !== null && item.price !== '') {
+          existing.price = Number(item.price);
+        }
+      }
+    }
+  }
+
+  const userItems = [...byKey.values()]
+    .map(({ stores, ...rest }) => ({ ...rest, storeList: [...stores] }))
+    .sort((a, b) => {
+      if (a.sameStore !== b.sameStore) return a.sameStore ? -1 : 1;
+      if (a.fromPrincipal !== b.fromPrincipal) return a.fromPrincipal ? -1 : 1;
+      return a.name.localeCompare(b.name, 'pt-BR');
+    });
+
+  const defaults = [];
+  for (const q of QUICK_ITEMS) {
+    const key = normalizeItemName(q.name);
+    if (byKey.has(key)) continue;
+    defaults.push({
+      name: q.name,
+      category: q.category,
+      unit: q.unit,
+      quantity: 1,
+      price: null,
+      store: null,
+      storeList: [],
+      sameStore: false,
+      fromPrincipal: false,
+      fromUser: false
+    });
+  }
+
+  return [...userItems, ...defaults];
+}
+
 // ===== PERSISTÊNCIA =====
 
 export function loadLists() {
@@ -83,65 +180,106 @@ export function saveLists(lists) {
 
 // ===== OPERAÇÕES DE LISTA =====
 
-export function createList(name, storeKey) {
+function cloneItems(items = []) {
+  return items.map(item => ({
+    ...item,
+    id: generateId(),
+    quantity: item.quantity && item.quantity > 0 ? item.quantity : 1,
+    unit: item.unit || 'un',
+    price: item.price !== undefined && item.price !== null && item.price !== '' ? Number(item.price) : null,
+    checked: false
+  }));
+}
+
+export function createList(name, storeKey, { isPrincipal = false, templateItems = null } = {}) {
+  const now = new Date().toISOString();
   return {
     id: generateId(),
     name,
     store: storeKey || 'outro',
-    createdAt: new Date().toISOString(),
-    items: [],
+    createdAt: now,
+    updatedAt: now,
+    items: templateItems ? cloneItems(templateItems) : [],
+    isPrincipal: Boolean(isPrincipal),
+    status: 'active'
+  };
+}
+
+export function createListFromTemplate(source, targetName) {
+  const now = new Date().toISOString();
+  return {
+    id: generateId(),
+    name: (targetName || '').trim() || source.name,
+    store: source.store || 'outro',
+    createdAt: now,
+    updatedAt: now,
+    items: cloneItems(source.items || []),
+    isPrincipal: false,
+    templateSourceId: source.id,
     status: 'active'
   };
 }
 
 export function reuseList(source) {
-  return {
-    id: generateId(),
-    name: source.name + ' (cópia)',
-    store: source.store || 'outro',
-    createdAt: new Date().toISOString(),
-    items: source.items.map(item => ({
-      ...item,
-      id: generateId(),
-      checked: false,
-      price: null
-    })),
-    status: 'active'
-  };
+  return createListFromTemplate(source, `${source.name} (cópia)`);
+}
+
+export function togglePrincipal(list) {
+  if (!list) return false;
+  list.isPrincipal = !list.isPrincipal;
+  list.updatedAt = new Date().toISOString();
+  return list.isPrincipal;
 }
 
 // ===== OPERAÇÕES DE ITEM =====
 
-export function addItem(list, name, category, unit) {
-  const existing = list.items.find(i => i.name.toLowerCase() === name.toLowerCase());
+export function addItem(list, name, category, unit, extra = {}) {
+  const cleanName = String(name || '').trim();
+  if (!cleanName) return;
+  const targetKey = normalizeItemName(cleanName);
+  const existing = list.items.find(i => normalizeItemName(i.name) === targetKey);
+  const addQty = extra.quantity && Number(extra.quantity) > 0 ? Number(extra.quantity) : 1;
+  const parsedPrice = extra.price !== undefined && extra.price !== null && extra.price !== '' && Number.isFinite(Number(extra.price))
+    ? Number(extra.price)
+    : null;
+
   if (existing) {
-    existing.quantity = (existing.quantity || 1) + 1;
+    existing.quantity = Math.round(((existing.quantity || 1) + 1) * 100) / 100;
+    if ((existing.price === null || existing.price === undefined) && parsedPrice !== null) {
+      existing.price = parsedPrice;
+    }
   } else {
     list.items.push({
       id: generateId(),
-      name,
+      name: cleanName,
       category: category || 'outros',
-      quantity: 1,
+      quantity: addQty,
       unit: unit || 'un',
-      price: null,
+      price: parsedPrice,
       checked: false
     });
   }
+  list.updatedAt = new Date().toISOString();
 }
 
 export function toggleItem(list, itemId) {
   const item = list.items.find(i => i.id === itemId);
-  if (item) item.checked = !item.checked;
+  if (item) {
+    item.checked = !item.checked;
+    list.updatedAt = new Date().toISOString();
+  }
 }
 
 export function removeItem(list, itemId) {
   list.items = list.items.filter(i => i.id !== itemId);
+  list.updatedAt = new Date().toISOString();
 }
 
 export function editItem(list, itemId, patch) {
   const item = list.items.find(i => i.id === itemId);
   if (!item) return;
   Object.assign(item, patch);
+  list.updatedAt = new Date().toISOString();
 }
 
 // ===== CHECKOUT =====
@@ -171,5 +309,6 @@ export function buildCheckoutTransaction({ list, totalValue, responsible, catego
 export function finalizeList(list, totalSpent) {
   list.status = 'completed';
   list.completedAt = new Date().toISOString();
+  list.updatedAt = list.completedAt;
   list.totalSpent = totalSpent || 0;
 }

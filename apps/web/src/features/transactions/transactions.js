@@ -109,8 +109,12 @@ export function renderTransactionItem(t, { selectable = false, selected = false 
 export function updateRecentTransactions(transactions) {
   const container = document.getElementById('recentTransactionsList');
   if (!container) return;
-  if (transactions.length === 0) { container.innerHTML = emptyState('Nenhuma transação este mês'); return; }
-  container.innerHTML = transactions.slice(-5).reverse().map(t => renderTransactionItem(t)).join('');
+  const visible = (transactions || []).filter(t => !t.isBalanceAdjustment);
+  if (visible.length === 0) { container.innerHTML = emptyState('Nenhuma transação este mês'); return; }
+  const sorted = visible.slice().sort((a, b) =>
+    (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || '')
+  );
+  container.innerHTML = sorted.slice(0, 5).map(t => renderTransactionItem(t)).join('');
 }
 
 // ===== HISTÓRICO DE TRANSAÇÕES =====
