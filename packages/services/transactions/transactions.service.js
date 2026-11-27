@@ -7,6 +7,19 @@ import { generateId } from '../../utils/helpers.js';
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
+function normText(str) {
+  return String(str || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function daysBetweenIso(a, b) {
+  if (!a || !b) return Infinity;
+  const da = new Date(a + 'T12:00:00');
+  const db = new Date(b + 'T12:00:00');
+  return Math.abs(Math.round((da - db) / 86400000));
+}
+
 // ===== FACTORY =====
 
 export function buildTransactionObject({ type, amount, category, responsible, date, description, paymentMethod, familyId }) {
@@ -81,7 +94,7 @@ export function groupByDate(transactions) {
     }));
 }
 
-// ===== CONCILIAÇÃO E SALDO ACUMULADO EM CONTA =====
+// ===== CONCILIAÇÃO DE SALÁRIO × EXTRATO E SALDO ACUMULADO =====
 
 export function isBenefitMode(val) {
   return val === 'vr' || val === 'va';
@@ -91,6 +104,64 @@ export function matchesWalletMode(paymentOrSalaryType, mode = 'geral') {
   if (mode === 'vr') return paymentOrSalaryType === 'vr';
   if (mode === 'va') return paymentOrSalaryType === 'va';
   return !isBenefitMode(paymentOrSalaryType);
+}
+
+const SALARY_TX_RE = /\b(salario|vencimento|provento|folha|remunera|holerite|contracheque)\b/;
+
+/**
+ * Pareia 1-para-1 salários cadastrados na aba Salário com entradas equivalentes do extrato
+ * (ex.: "Ted conta salario R$ 4.240,06" no dia 29/10 e holerite líquido de R$ 4.240,06 em 30/10),
+ * evitando que o mesmo salário seja somado duas vezes na Receita e no Saldo em conta.
+ */
+export function matchSalaryDeposits(transactions = [], salaries = []) {
+  const matchedTxIds = new Set();
+  const salaryEffectiveDate = new Map();
+
+  const regularSalaries = (salaries || []).filter(s => s && s.date && !isBenefitMode(s.salaryType));
+  if (!regularSalaries.length) return { matchedTxIds, salaryEffectiveDate };
+
+  const candidateTxs = (transactions || []).filter(t =>
+    t &&
+    !t.isBalanceAdjustment &&
+    t.type === 'entrada' &&
+    t.date &&
+    !isBenefitMode(t.paymentMethod)
+  );
+
+  for (const sal of regularSalaries) {
+    const salAmt = Number(sal.amount || 0);
+    if (!(salAmt > 0)) continue;
+
+    let bestTx = null;
+    let bestDiff = Infinity;
+
+    for (const tx of candidateTxs) {
+      if (matchedTxIds.has(tx.id)) continue;
+      const txAmt = Number(tx.amount || 0);
+      if (Math.abs(txAmt - salAmt) > 0.02) continue;
+
+      const dayDiff = daysBetweenIso(tx.date, sal.date);
+      if (dayDiff > 10) continue;
+
+      const descNorm = normText(tx.description);
+      const hasSalaryHint = SALARY_TX_RE.test(descNorm);
+      const hasExactCents = txAmt >= 500 && Math.round(txAmt * 100) % 100 !== 0 && dayDiff <= 5;
+      if (!hasSalaryHint && !hasExactCents) continue;
+
+      if (dayDiff < bestDiff) {
+        bestDiff = dayDiff;
+        bestTx = tx;
+      }
+    }
+
+    if (bestTx) {
+      matchedTxIds.add(bestTx.id);
+      // Usa a data real em que o dinheiro caiu na conta bancária para manter o saldo diário exato
+      salaryEffectiveDate.set(sal.id, bestTx.date);
+    }
+  }
+
+  return { matchedTxIds, salaryEffectiveDate };
 }
 
 export function getCheckpointValue(cp) {
@@ -115,11 +186,16 @@ export function getLatestCheckpoint(transactions, upToDate, mode = 'geral') {
   )[0];
 }
 
-/** Soma líquida (entradas + salários − saídas) no intervalo [fromDate, toDate] inclusivo, sem ajustes de saldo. */
+/** Soma líquida (entradas + salários − saídas) no intervalo [fromDate, toDate] inclusivo, sem duplicar salário × extrato. */
 export function sumNetBetween(transactions, salaries = [], fromDate = '0000-00-00', toDate = '9999-99-99', mode = 'geral') {
+  const { matchedTxIds, salaryEffectiveDate } = mode === 'geral'
+    ? matchSalaryDeposits(transactions, salaries)
+    : { matchedTxIds: new Set(), salaryEffectiveDate: new Map() };
+
   let sum = 0;
   for (const t of transactions || []) {
     if (!t || t.isBalanceAdjustment || !t.date) continue;
+    if (matchedTxIds.has(t.id)) continue;
     if (!matchesWalletMode(t.paymentMethod, mode)) continue;
     if (t.date >= fromDate && t.date <= toDate) {
       sum += t.type === 'entrada' ? Number(t.amount || 0) : -Number(t.amount || 0);
@@ -128,7 +204,8 @@ export function sumNetBetween(transactions, salaries = [], fromDate = '0000-00-0
   for (const s of salaries || []) {
     if (!s || !s.date) continue;
     if (!matchesWalletMode(s.salaryType, mode)) continue;
-    if (s.date >= fromDate && s.date <= toDate) {
+    const effDate = salaryEffectiveDate.get(s.id) || s.date;
+    if (effDate >= fromDate && effDate <= toDate) {
       sum += Number(s.amount || 0);
     }
   }
@@ -169,7 +246,6 @@ export function computeMonthAccountBalance(transactions, salaries = [], year, mo
   const cpBase = getCheckpointValue(cp);
 
   if (cp.date <= monthStart) {
-    // Soma tudo desde a data do marco até a véspera do mês selecionado
     let beforeMonthSum = 0;
     if (cp.date < monthStart) {
       const prevMonthEnd = toPrevDay(monthStart);
@@ -187,7 +263,6 @@ export function computeMonthAccountBalance(transactions, salaries = [], year, mo
     };
   }
 
-  // Marco começa no meio do próprio mês (ex.: extrato iniciado em 27/10 visto em Outubro)
   const afterCpNet = sumNetBetween(transactions, salaries, cp.date, monthEnd, mode);
   const closingBalance = round2(cpBase + afterCpNet);
   const effectiveCarryOver = round2(closingBalance - monthNet);

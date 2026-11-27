@@ -53,15 +53,15 @@ function xAt(row, index) {
 const HEADER_PROV = /\b(proventos?|vencimentos?|creditos?|rendimentos?)\b/;
 const HEADER_DESC = /\b(descontos?|debitos?|deducoes)\b/;
 
-const TOTAL_PROV = /total\s*(?:de\s*|dos\s*)?(?:vencimentos|proventos|creditos|rendimentos)|total\s+bruto/;
-const TOTAL_DESC = /total\s*(?:de\s*|dos\s*)?(?:descontos|debitos|deducoes)/;
-const TOTAL_NET = /(?:valor\s+|total\s+|salario\s+)?liquido(?:\s+a\s+receber)?/;
+const TOTAL_PROV = /\btot(?:al|\.)?\s*(?:de\s*|dos\s*)?(?:vencimentos|proventos|creditos|rendimentos)|total\s+bruto/;
+const TOTAL_DESC = /\btot(?:al|\.)?\s*(?:de\s*|dos\s*)?(?:descontos|debitos|deducoes)/;
+const TOTAL_NET = /(?:valor\s+|tot(?:al|\.)?\s+|salario\s+)?liquido(?:\s+a\s+receber)?/;
 
 // Linhas informativas (rodapé de bases, dados bancários e cadastrais) — não são verbas
-const NOT_ITEM = /fgts|base\s*(?:de\s*)?calc|bases?\s+(?:inss|irrf|fgts)|sal\.?\s*contr|salario\s+contribui|faixa|banco|agencia|\bconta\b|cpf|cnpj|admiss|\bcbo\b|cargo|depend|pis\b|matricula|^\s*total|liquido/;
+const NOT_ITEM = /f\s*g\s*t\s*s|base\s*(?:de\s*)?calc|bases?\s+(?:inss|irrf|fgts)|base\s+i\s*r\s*r\s*f|salar\.?\s*base|sal\.?\s*contr|salario\s+contribui|faixa|banco|agencia|\bconta\b|cpf|cnpj|admiss|\bcbo\b|cargo|depend|pis\b|matricula|^\s*tot(?:al|\.)?|liquido/;
 
 const KW_BENEFIT = /aux[ií]lio|ajuda\s+de\s+custo|reembolso|salario\s+familia/;
-const KW_DESC = /inss|irrf|\bir\b|i\.r\.|imposto|contrib|sindic|vale[\s.-]*transp|\bv\.?t\.?\b|desc|adiant|falta|atraso|pensao|emprest|consign|plano|saude|medic|odonto|dent|convenio|seguro|copart|farmacia|mensalidade|refeic|alimentac|\bv\.?r\.?\b|\bv\.?a\.?\b|cesta|previd|associa|parcela|debito|estorno/;
+const KW_DESC = /i\s*n\s*s\s*s|i\s*r\s*r\s*f|\bir\b|i\.r\.|imposto|contrib|sindic|vale[\s.-]*transp|\bv\.?t\.?\b|desc|adiant|falta|atraso|pensao|emprest|consign|plano|saude|medic|odonto|dent|convenio|seguro|copart|farmacia|mensalidade|refeic|alimentac|\bv\.?r\.?\b|\bv\.?a\.?\b|cesta|previd|associa|parcela|debito|estorno/;
 const KW_PROV = /salario|hora|\bh\.?\s?e\b|extra|adicion|noturn|insalub|periculos|comiss|gratif|\bdsr\b|d\.s\.r|repouso|premio|bonus|ferias|13|abono|ajuda|auxilio|reembolso|\bplr\b|particip|quinquen|anuenio|bienio|trienio|sobreaviso|arredond|diferenca|retroativ/;
 
 const BASE_SALARY = /^(?:\d+\s+)?(?:salario|sal\.?|ordenado|vencimento\s+base|pro[\s-]*labore|horas?\s+normais|dias?\s+(?:normais|trabalhados))\b/;
@@ -78,7 +78,12 @@ function keywordKind(label) {
 const SMALL_WORDS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 's/', 'c/', 'a', 'o']);
 /** "SALARIO BASE" → "Salario Base"; mantém siglas curtas (INSS, IRRF, DSR, VT). */
 export function prettyLabel(label) {
-  const clean = label.replace(/\s+/g, ' ').trim();
+  const clean = label
+    .replace(/\bI\s+N\s+S\s+S\b/gi, 'INSS')
+    .replace(/\bI\s+R\s+R\s+F\b/gi, 'IRRF')
+    .replace(/\bF\s+G\s+T\s+S\b/gi, 'FGTS')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (clean !== clean.toUpperCase()) return clean;
   return clean.toLowerCase().split(' ').map((w, i) => {
     if (i && SMALL_WORDS.has(w)) return w;
@@ -142,9 +147,32 @@ function findTotals(rows) {
         if (pick) { used.add(pick); totals[l.key] = pick.value; }
       }
     } else if (rows[i + 1]) {
-      // Rótulos numa linha, valores na seguinte, na mesma ordem
-      moneys = [...normalizeText(rows[i + 1].text).matchAll(MONEY)].filter(m => !m[2]).map(m => toAmount(m[1]));
-      labels.forEach((l, k) => { if (moneys[k] != null) totals[l.key] = moneys[k]; });
+      // Rótulos numa linha, valores na seguinte: alinha por coordenada x quando disponível;
+      // se a linha tiver colunas extras à esquerda (ex.: SALAR. BASE ... TOT. PROVENTOS TOT. DESCONTOS), pega os últimos valores.
+      const nextRow = rows[i + 1];
+      const nextMatches = [...nextRow.text.matchAll(MONEY)].filter(m => !m[2]);
+      if (rows[i].spans && nextRow.spans && nextMatches.length >= labels.length) {
+        const usedIdx = new Set();
+        labels.forEach(l => {
+          const lx = xAt(rows[i], l.index);
+          if (lx == null) return;
+          let bestIdx = -1, bestDist = Infinity;
+          nextMatches.forEach((nm, idx) => {
+            if (usedIdx.has(idx)) return;
+            const mx = xAt(nextRow, nm.index);
+            if (mx == null) return;
+            const dist = Math.abs(mx - lx);
+            if (dist < bestDist) { bestDist = dist; bestIdx = idx; }
+          });
+          if (bestIdx >= 0) { usedIdx.add(bestIdx); totals[l.key] = toAmount(nextMatches[bestIdx][1]); }
+        });
+      } else if (nextMatches.length) {
+        const vals = nextMatches.map(m => toAmount(m[1]));
+        const offset = vals.length > labels.length && labels[0].index > n.length * 0.45
+          ? vals.length - labels.length
+          : 0;
+        labels.forEach((l, k) => { if (vals[offset + k] != null) totals[l.key] = vals[offset + k]; });
+      }
     }
   }
   return totals;
@@ -182,11 +210,31 @@ function findCompetencia(rows) {
   return null;
 }
 
+const PAY_DATE_HINT = /\b(?:data\s*(?:de\s*|do\s*)?(?:pag(?:amen)?to|pgto|credito|deposito)|dt\.?\s*(?:de\s*)?(?:pag(?:amen)?to|pgto|credito)|pagamento|credito|creditado|pago\s+em|liberado\s+em)\b/;
+
 function findPayDate(rows) {
-  for (const r of rows) {
-    const n = normalizeText(r.text);
-    const m = n.match(/(?:pagamento|credito|creditado|pago\s+em|data\s+pgto)\D{0,25}(\d{2})\/(\d{2})\/(\d{4})/);
-    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  for (let i = 0; i < rows.length; i++) {
+    const n = normalizeText(rows[i].text);
+    const hm = n.match(PAY_DATE_HINT);
+    if (!hm) continue;
+    // Ignora "Demonstrativo de Pagamento" sem data de pagamento
+    const after = n.slice(hm.index);
+    const sameLine = after.match(/(?:pag(?:amen)?to|pgto|credito|creditado|deposito|pago\s+em|liberado\s+em)\D{0,25}(\d{2})\/(\d{2})\/(20\d{2})/);
+    if (sameLine) return `${sameLine[3]}-${sameLine[2]}-${sameLine[1]}`;
+
+    // Rótulo "DATA PAGTO" numa linha e "30/10/2026" na linha abaixo
+    if (/\b(?:data|dt\.?)\s*(?:de\s*|do\s*)?(?:pag(?:amen)?to|pgto|credito|deposito)\b/.test(after) && rows[i + 1]) {
+      const nextNorm = normalizeText(rows[i + 1].text);
+      const dates = [...nextNorm.matchAll(/\b(\d{2})\/(\d{2})\/(20\d{2})\b/g)];
+      if (dates.length === 1 && !/admiss|nasc/.test(n)) {
+        const d = dates[0];
+        return `${d[3]}-${d[2]}-${d[1]}`;
+      }
+      if (dates.length > 1) {
+        const d = dates[dates.length - 1];
+        return `${d[3]}-${d[2]}-${d[1]}`;
+      }
+    }
   }
   return null;
 }

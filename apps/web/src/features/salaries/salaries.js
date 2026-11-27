@@ -12,8 +12,10 @@ import {
   buildSalaryObject,
   filterByMonth,
   getSalaryMonths,
-  computeSalaryStats
+  computeSalaryStats,
+  inferPayslipDate
 } from '../../../../../packages/services/salaries/salaries.service.js';
+import { matchSalaryDeposits } from '../../../../../packages/services/transactions/transactions.service.js';
 import { readDocumentRows } from '../../../../../packages/services/import/statement.local.js';
 import { parsePayslip } from '../../../../../packages/services/import/payslip.parser.js';
 
@@ -42,10 +44,28 @@ export function addSalary(e) {
 
   if (!salary.person || !grossAmount || !salary.date) { alert('Preencha todos os campos!'); return; }
 
+  const existingSame = state.salaries.find(s =>
+    s.person === salary.person &&
+    (s.salaryType || 'salario') === salary.salaryType &&
+    Math.abs(Number(s.amount) - Number(salary.amount)) <= 0.02 &&
+    Math.abs(new Date(s.date + 'T12:00:00') - new Date(salary.date + 'T12:00:00')) <= 10 * 86400000
+  );
+  if (existingSame && !confirm(`Já existe uma entrada de ${formatCurrency(existingSame.amount)} em ${formatDate(existingSame.date)} para ${salary.person}. Registrar mesmo assim?`)) {
+    return;
+  }
+
   state.salaries.push(salary);
   saveDataToStorage();
   saveToFirebase('salaries', salary);
-  showAlert('Entrada registrada!', 'success');
+
+  const { salaryEffectiveDate } = matchSalaryDeposits(state.transactions, state.salaries);
+  const reconciledWithStatement = salaryEffectiveDate.has(salary.id);
+  showAlert(
+    reconciledWithStatement
+      ? 'Holerite registrado e conciliado automaticamente com o crédito do extrato!'
+      : 'Entrada registrada!',
+    'success'
+  );
 
   e.target.reset();
   tempDeductions = [];
@@ -108,9 +128,10 @@ function applyPayslip(r) {
 
   document.getElementById('salaryAmount').value = r.gross.toFixed(2);
 
-  // Data: a de pagamento do holerite; senão mantém a do formulário (ou hoje)
+  // Data: usa DATA PAGTO do holerite, crédito equivalente do extrato ou fim do mês da competência
   const dateEl = document.getElementById('salaryDate');
-  if (r.payDate) dateEl.value = r.payDate;
+  const inferredDate = inferPayslipDate(r, state.transactions);
+  if (inferredDate) dateEl.value = inferredDate;
   else if (!dateEl.value) dateEl.value = toDateStr(new Date());
 
   const descEl = document.getElementById('salaryDescription');

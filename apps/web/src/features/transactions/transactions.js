@@ -12,7 +12,8 @@ import { updateDashboard } from '../dashboard/dashboard.js';
 import {
   buildTransactionObject,
   filterTransactions,
-  groupByDate
+  groupByDate,
+  matchSalaryDeposits
 } from '../../../../../packages/services/transactions/transactions.service.js';
 
 // ===== ADICIONAR TRANSAÇÃO =====
@@ -68,7 +69,7 @@ export function deleteTransaction(id) {
 }
 
 // ===== RENDER ITEM =====
-export function renderTransactionItem(t, { selectable = false, selected = false } = {}) {
+export function renderTransactionItem(t, { selectable = false, selected = false, salaryLinked = false } = {}) {
   const cat      = CATEGORY_MAP[t.category] || { icon: '📁', label: t.category, css: 'cat-outros' };
   const isIn     = t.type === 'entrada';
   const iconCss  = isIn ? 'cat-entrada' : cat.css;
@@ -79,6 +80,7 @@ export function renderTransactionItem(t, { selectable = false, selected = false 
   const isVR     = t.paymentMethod === 'vr';
   const isVA     = t.paymentMethod === 'va';
   const payBadge = isVR ? ' <span class="vr-badge">VR</span>' : isVA ? ' <span class="va-badge">VA</span>' : '';
+  const salBadge = salaryLinked ? ' <span class="vr-badge" title="Já contabilizado pelo seu holerite na aba Salário (não duplica o saldo)">Conciliado ao Salário</span>' : '';
   const wrapCss  = isVR ? 'cat-vr' : isVA ? 'cat-va' : iconCss;
   const wrapIcon = isVR ? '🍽️' : isVA ? '🛒' : icon;
 
@@ -90,7 +92,7 @@ export function renderTransactionItem(t, { selectable = false, selected = false 
       ${check}
       <div class="trans-icon-wrap ${wrapCss}">${wrapIcon}</div>
       <div class="trans-info">
-        <div class="trans-name">${esc(t.description) || catLabel}${payBadge}</div>
+        <div class="trans-name">${esc(t.description) || catLabel}${payBadge}${salBadge}</div>
         <div class="trans-meta">
           <span>${formatDate(t.date)}</span>
           <span>·</span>
@@ -114,10 +116,11 @@ export function updateRecentTransactions(transactions) {
   if (!container) return;
   const visible = (transactions || []).filter(t => !t.isBalanceAdjustment);
   if (visible.length === 0) { container.innerHTML = emptyState('Nenhuma transação este mês'); return; }
+  const { matchedTxIds } = matchSalaryDeposits(state.transactions, state.salaries);
   const sorted = visible.slice().sort((a, b) =>
     (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || '')
   );
-  container.innerHTML = sorted.slice(0, 5).map(t => renderTransactionItem(t)).join('');
+  container.innerHTML = sorted.slice(0, 5).map(t => renderTransactionItem(t, { salaryLinked: matchedTxIds.has(t.id) })).join('');
 }
 
 // ===== HISTÓRICO DE TRANSAÇÕES =====
@@ -158,6 +161,7 @@ export function updateTransactionHistory() {
     return;
   }
 
+  const { matchedTxIds } = matchSalaryDeposits(state.transactions, state.salaries);
   const groups = groupByDate(filtered);
   container.innerHTML = groups.map(({ date, items, dayTotal }) => {
     const totalColor = dayTotal >= 0 ? 'var(--income-dark)' : 'var(--expense)';
@@ -171,7 +175,7 @@ export function updateTransactionHistory() {
           <label class="trans-day-label">${dayCheck}${formatDate(date)}</label>
           <span class="trans-day-total" style="color:${totalColor}">${dayTotal >= 0 ? '+' : ''}${formatCurrency(dayTotal)}</span>
         </div>
-        ${items.map(t => renderTransactionItem(t, { selectable: bulk.active, selected: bulk.ids.has(t.id) })).join('')}
+        ${items.map(t => renderTransactionItem(t, { selectable: bulk.active, selected: bulk.ids.has(t.id), salaryLinked: matchedTxIds.has(t.id) })).join('')}
       </div>`;
   }).join('');
   updateBulkBar();

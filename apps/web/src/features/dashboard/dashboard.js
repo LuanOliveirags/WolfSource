@@ -12,7 +12,8 @@ import {
   computeMonthAccountBalance,
   getCheckpointValue,
   isBenefitMode,
-  matchesWalletMode
+  matchesWalletMode,
+  matchSalaryDeposits
 } from '../../../../../packages/services/transactions/transactions.service.js';
 import { updateRecentTransactions } from '../transactions/transactions.js';
 
@@ -280,21 +281,28 @@ export function updateDashboard() {
   const { year, month } = getSelectedYearMonth();
 
   const realTransactions = state.transactions.filter(t => !t.isBalanceAdjustment);
+  const { matchedTxIds, salaryEffectiveDate } = matchSalaryDeposits(realTransactions, state.salaries);
 
   const monthTransactions = realTransactions.filter(t => {
     const tDate = new Date(t.date + 'T12:00:00');
     return tDate.getMonth() === month && tDate.getFullYear() === year;
   });
 
-  const monthSalaries = state.salaries.filter(s => {
+  const effectiveSalaries = state.salaries.map(s => {
+    const effDate = salaryEffectiveDate.get(s.id);
+    return effDate && effDate !== s.date ? { ...s, date: effDate } : s;
+  });
+
+  const monthSalaries = effectiveSalaries.filter(s => {
     const sDate = new Date(s.date + 'T12:00:00');
     return sDate.getMonth() === month && sDate.getFullYear() === year;
   });
 
   const monthDebts = state.debts.filter(d => d.status === 'active');
 
-  // Separa Geral, VR e VA de forma independente
-  const generalTransactions = monthTransactions.filter(t => !isBenefitMode(t.paymentMethod));
+  // Separa Geral, VR e VA de forma independente; em Geral, ignora o depósito do extrato já coberto pelo holerite
+  const generalAllMonthTx = monthTransactions.filter(t => !isBenefitMode(t.paymentMethod));
+  const generalTransactions = generalAllMonthTx.filter(t => !matchedTxIds.has(t.id));
   const vrTransactions = monthTransactions.filter(t => t.paymentMethod === 'vr');
   const vaTransactions = monthTransactions.filter(t => t.paymentMethod === 'va');
 
@@ -432,7 +440,7 @@ export function updateDashboard() {
 
     updateCarryInfo(generalBalanceInfo);
     updateCharts(generalTransactions, monthDebts, generalSalaries, generalBalanceInfo);
-    updateRecentTransactions(generalTransactions);
+    updateRecentTransactions(generalAllMonthTx);
   }
 
   // Medidor do hero + mês por extenso no cabeçalho

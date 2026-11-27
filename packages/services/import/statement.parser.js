@@ -440,8 +440,8 @@ export function markDuplicates(items, existing, salaries = []) {
     if (item.type === 'entrada') {
       const salMatch = availSalaries.find(s =>
         !s._used &&
-        Math.abs(Number(s.amount) - Number(item.amount)) < 0.01 &&
-        daysBetweenIso(s.date, item.date) <= 5
+        Math.abs(Number(s.amount) - Number(item.amount)) < 0.02 &&
+        daysBetweenIso(s.date, item.date) <= 10
       );
       if (salMatch) {
         salMatch._used = true;
