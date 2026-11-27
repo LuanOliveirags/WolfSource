@@ -249,7 +249,16 @@ export function setupDeductionListeners() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.salary-type-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById('salaryType').value = btn.dataset.type;
+      const t = btn.dataset.type;
+      document.getElementById('salaryType').value = t;
+      const descInput = document.getElementById('salaryDescription');
+      if (descInput) {
+        descInput.placeholder = t === 'vr'
+          ? 'Ex: Recarga VR do mês'
+          : t === 'va'
+            ? 'Ex: Recarga VA do mês'
+            : 'Ex: Salário mês de março';
+      }
     });
   });
 
@@ -300,15 +309,23 @@ export function updateSalaryDisplay() {
     curYear  = now.getFullYear();
   }
 
-  const { byMember, combinedMonth, combinedAnnual, combinedVRMonth, combinedVRAnnual } =
-    computeSalaryStats(state.salaries, members, curMonth, curYear);
+  const {
+    byMember,
+    combinedMonth,
+    combinedAnnual,
+    combinedVRMonth,
+    combinedVRAnnual,
+    combinedVAMonth,
+    combinedVAAnnual
+  } = computeSalaryStats(state.salaries, members, curMonth, curYear);
 
   members.forEach(m => {
     const slug = m.name.replace(/\s+/g, '_');
-    const stats = byMember[slug] || { monthly: 0, annual: 0, vrMonthly: 0, vrAnnual: 0 };
+    const stats = byMember[slug] || { monthly: 0, annual: 0, vrMonthly: 0, vrAnnual: 0, vaMonthly: 0, vaAnnual: 0 };
     const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     el(`salary_${slug}`, formatCurrency(stats.monthly));
     el(`vr_${slug}`,     formatCurrency(stats.vrMonthly));
+    el(`va_${slug}`,     formatCurrency(stats.vaMonthly));
     el(`annual_${slug}`, `Anual: ${formatCurrency(stats.annual)}`);
   });
 
@@ -317,6 +334,8 @@ export function updateSalaryDisplay() {
   el('combinedAnnual',    `Anual: ${formatCurrency(combinedAnnual)}`);
   el('combinedVR',        formatCurrency(combinedVRMonth));
   el('combinedVRAnnual',  `Anual: ${formatCurrency(combinedVRAnnual)}`);
+  el('combinedVA',        formatCurrency(combinedVAMonth));
+  el('combinedVAAnnual',  `Anual: ${formatCurrency(combinedVAAnnual)}`);
 
   populateSalaryMonthFilter();
   updateSalaryHistory();
@@ -365,13 +384,16 @@ export function updateSalaryHistory() {
     const deductionsHtml = hasDeductions ? `<div class="salary-deductions-detail">${s.deductions.map(d => `<span class="deduction-tag">↓ ${esc(d.name)}: ${formatCurrency(d.value)}</span>`).join('')}</div>` : '';
 
     const isVR       = s.salaryType === 'vr';
-    const typeIcon   = isVR ? '🍽️' : (personIcon[s.person] || '💰');
-    const typeBadge  = isVR ? '<span class="vr-badge">VR/VA</span>' : '';
-    const defaultDesc = isVR ? `VR/VA de ${esc(s.person)}` : `Salário de ${esc(s.person)}`;
+    const isVA       = s.salaryType === 'va';
+    const typeIcon   = isVR ? '🍽️' : isVA ? '🛒' : (personIcon[s.person] || '💰');
+    const typeBadge  = isVR ? '<span class="vr-badge">VR</span>' : isVA ? '<span class="va-badge">VA</span>' : '';
+    const defaultDesc = isVR ? `VR de ${esc(s.person)}` : isVA ? `VA de ${esc(s.person)}` : `Salário de ${esc(s.person)}`;
+    const wrapClass  = isVR ? 'cat-vr' : isVA ? 'cat-va' : 'cat-entrada';
+    const amtClass   = isVR ? 'vr-amount' : isVA ? 'va-amount' : 'entrada';
 
     return `
-    <div class="transaction-item ${isVR ? 'transaction-vr' : ''}">
-      <div class="trans-icon-wrap ${isVR ? 'cat-vr' : 'cat-entrada'}">${typeIcon}</div>
+    <div class="transaction-item ${isVR ? 'transaction-vr' : isVA ? 'transaction-va' : ''}">
+      <div class="trans-icon-wrap ${wrapClass}">${typeIcon}</div>
       <div class="trans-info">
         <div class="trans-name">${esc(s.description) || defaultDesc} ${typeBadge}</div>
         <div class="trans-meta">
@@ -381,7 +403,7 @@ export function updateSalaryHistory() {
         ${additionsHtml}${deductionsHtml}
       </div>
       <div class="trans-actions">
-        <div class="trans-amount ${isVR ? 'vr-amount' : 'entrada'}">+${formatCurrency(s.amount)}</div>
+        <div class="trans-amount ${amtClass}">+${formatCurrency(s.amount)}</div>
         <button onclick="deleteSalary('${s.id}')" class="btn-delete" title="Excluir"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>`;

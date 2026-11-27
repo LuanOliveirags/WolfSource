@@ -77,7 +77,10 @@ export function renderTransactionItem(t, { selectable = false, selected = false 
   const amtClass = isIn ? 'entrada' : 'saida';
   const catLabel = isIn ? 'Receita' : cat.label;
   const isVR     = t.paymentMethod === 'vr';
-  const vrBadge  = isVR ? ' <span class="vr-badge">VR/VA</span>' : '';
+  const isVA     = t.paymentMethod === 'va';
+  const payBadge = isVR ? ' <span class="vr-badge">VR</span>' : isVA ? ' <span class="va-badge">VA</span>' : '';
+  const wrapCss  = isVR ? 'cat-vr' : isVA ? 'cat-va' : iconCss;
+  const wrapIcon = isVR ? '🍽️' : isVA ? '🛒' : icon;
 
   const check = selectable
     ? `<input type="checkbox" class="trans-check" aria-label="Selecionar" ${selected ? 'checked' : ''}>`
@@ -85,9 +88,9 @@ export function renderTransactionItem(t, { selectable = false, selected = false 
   return `
     <div class="transaction-item${selectable ? ' is-selectable' : ''}${selected ? ' is-selected' : ''}" data-id="${esc(t.id)}">
       ${check}
-      <div class="trans-icon-wrap ${isVR ? 'cat-vr' : iconCss}">${isVR ? '🍽️' : icon}</div>
+      <div class="trans-icon-wrap ${wrapCss}">${wrapIcon}</div>
       <div class="trans-info">
-        <div class="trans-name">${esc(t.description) || catLabel}${vrBadge}</div>
+        <div class="trans-name">${esc(t.description) || catLabel}${payBadge}</div>
         <div class="trans-meta">
           <span>${formatDate(t.date)}</span>
           <span>·</span>

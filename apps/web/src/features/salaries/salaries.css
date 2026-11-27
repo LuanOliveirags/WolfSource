@@ -62,6 +62,7 @@
 .pic-salaries .pic-salary-row:first-child .pic-salary-val { font-size: 1.55rem; }
 .pic-salaries .pic-salary-row:first-child { flex-direction: column; align-items: flex-start; gap: 2px; padding-bottom: 12px; border-bottom: 1px dashed var(--border); }
 .pic-vr-row .pic-salary-val { font-size: 0.98rem; color: var(--income-dark); }
+.pic-va-row .pic-salary-val { font-size: 0.98rem; color: var(--c-sky); }
 .person-income-card .salary-annual,
 .salary-annual { font-size: 0.75rem; color: var(--text-muted); }
 
@@ -99,6 +100,7 @@
   color: var(--ink-text);
 }
 .pic-combined-vr .pic-combined-val { font-size: 1.5rem; color: #4BE3B4; }
+.pic-combined-va .pic-combined-val { font-size: 1.5rem; color: #7DD3FC; }
 .pic-combined-sub { font-size: 0.75rem; color: var(--ink-text-3); }
 
 /* ═══════════════ HISTÓRICO ═══════════════ */
@@ -185,7 +187,7 @@
 /* ═══════════════ FORMULÁRIO (modal) ═══════════════ */
 .salary-type-toggle {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   padding: 4px;
   background: var(--bg-sunken);
@@ -207,6 +209,7 @@
 .salary-type-btn.active { background: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-sm); }
 .salary-type-btn.active i { color: var(--gold-deep); }
 #btnVR.active i { color: var(--income-dark); }
+#btnVA.active i { color: var(--c-sky); }
 
 .deductions-section {
   border: 1px solid var(--border);
@@ -285,12 +288,12 @@
 
 /* ═══════════════ BREAKPOINTS ═══════════════ */
 @media (min-width: 640px) {
-  .pic-combined-grid { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: end; }
+  .pic-combined-grid { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); align-items: end; }
 }
 @media (min-width: 1024px) {
   .person-cards-grid { gap: 16px; }
   .combined-card { padding: 28px 32px; flex-direction: row; align-items: center; justify-content: space-between; gap: 32px; }
   .combined-card .pic-header { flex-direction: column; align-items: flex-start; gap: 14px; }
-  .combined-card .pic-combined-grid { flex: 1; max-width: 640px; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 40px; }
+  .combined-card .pic-combined-grid { flex: 1; max-width: 720px; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
   .person-income-card { padding: 22px; }
 }

@@ -1226,7 +1226,7 @@
 /* Forma de pagamento (também usada no formulário de transação) */
 .shop-payment-methods {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
   background: var(--bg-sunken);
@@ -1251,6 +1251,7 @@
 .shop-pay-btn.active i { color: var(--gold-deep); }
 [data-theme="dark"] .shop-pay-btn.active i { color: var(--gold); }
 .shop-pay-vr.active, .shop-pay-vr.active i { color: var(--income-dark); }
+.shop-pay-va.active, .shop-pay-va.active i { color: var(--c-sky); }
 
 @media (min-width: 640px) {
   #shoppingListsBody { grid-template-columns: repeat(2, minmax(0, 1fr)); }

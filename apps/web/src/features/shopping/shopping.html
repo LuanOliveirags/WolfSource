@@ -177,11 +177,12 @@
                         <button type="button" class="shop-pay-btn active" data-method="dinheiro"><i class="fa-solid fa-money-bill"></i> Dinheiro</button>
                         <button type="button" class="shop-pay-btn" data-method="cartao"><i class="fa-solid fa-credit-card"></i> Cartão</button>
                         <button type="button" class="shop-pay-btn" data-method="pix"><i class="fa-brands fa-pix"></i> Pix</button>
-                        <button type="button" class="shop-pay-btn shop-pay-vr" data-method="vr"><i class="fa-solid fa-utensils"></i> VR/VA</button>
+                        <button type="button" class="shop-pay-btn shop-pay-vr" data-method="vr"><i class="fa-solid fa-utensils"></i> VR</button>
+                        <button type="button" class="shop-pay-btn shop-pay-va" data-method="va"><i class="fa-solid fa-basket-shopping"></i> VA</button>
                     </div>
                     <input type="hidden" id="shopPaymentMethod" value="dinheiro">
                     <p class="shop-pay-vr-hint" id="shopPayVrHint" style="display:none">
-                        <i class="fa-solid fa-circle-info"></i> Pagamento com VR/VA não será contabilizado nos gastos gerais
+                        <i class="fa-solid fa-circle-info"></i> <span id="shopPayVrHintText">Pagamento com benefício será contabilizado separado dos gastos gerais</span>
                     </p>
                 </div>
                 <div class="form-group">

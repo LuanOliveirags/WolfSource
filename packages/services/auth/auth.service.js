@@ -299,8 +299,12 @@ export function renderPersonIncomeCards() {
             <span class="pic-salary-val" id="salary_${slug}">R$ 0,00</span>
           </div>
           <div class="pic-salary-row pic-vr-row">
-            <span class="pic-salary-label"><i class="fa-solid fa-utensils"></i> VR/VA</span>
+            <span class="pic-salary-label"><i class="fa-solid fa-utensils"></i> VR</span>
             <span class="pic-salary-val pic-vr-val" id="vr_${slug}">R$ 0,00</span>
+          </div>
+          <div class="pic-salary-row pic-va-row">
+            <span class="pic-salary-label"><i class="fa-solid fa-basket-shopping"></i> VA</span>
+            <span class="pic-salary-val pic-va-val" id="va_${slug}">R$ 0,00</span>
           </div>
         </div>
         <p class="salary-annual" id="annual_${slug}">Anual: R$ 0,00</p>
@@ -320,9 +324,14 @@ export function renderPersonIncomeCards() {
         </div>
         <div class="pic-combined-divider"></div>
         <div class="pic-combined-item pic-combined-vr">
-          <span class="pic-combined-label"><i class="fa-solid fa-utensils"></i> VR/VA</span>
+          <span class="pic-combined-label"><i class="fa-solid fa-utensils"></i> VR</span>
           <span class="pic-combined-val pic-vr-val" id="combinedVR">R$ 0,00</span>
           <span class="pic-combined-sub" id="combinedVRAnnual">Anual: R$ 0,00</span>
+        </div>
+        <div class="pic-combined-item pic-combined-va">
+          <span class="pic-combined-label"><i class="fa-solid fa-basket-shopping"></i> VA</span>
+          <span class="pic-combined-val pic-va-val" id="combinedVA">R$ 0,00</span>
+          <span class="pic-combined-sub" id="combinedVAAnnual">Anual: R$ 0,00</span>
         </div>
       </div>
     </div>`;

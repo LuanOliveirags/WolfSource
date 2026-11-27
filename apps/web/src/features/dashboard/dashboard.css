@@ -42,11 +42,11 @@
 .month-btn.active { background: var(--text-primary); color: var(--bg); }
 [data-theme="dark"] .month-btn.active { background: var(--gold); color: #1B1406; }
 
-/* Toggle Geral / VR */
+/* Toggle Geral / VR / VA */
 .dash-mode-toggle {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   padding: 4px;
   background: var(--bg-sunken);
   border-radius: var(--r-sm);
@@ -57,23 +57,24 @@
   top: 4px;
   bottom: 4px;
   left: 4px;
-  width: calc(50% - 4px);
+  width: calc((100% - 8px) / 3);
   background: var(--bg-card);
   border-radius: 7px;
   box-shadow: var(--shadow-sm);
   transition: transform var(--ease-med);
 }
 .dash-mode-slider.vr-active { transform: translateX(100%); }
+.dash-mode-slider.va-active { transform: translateX(200%); }
 .dash-mode-btn {
   position: relative;
   z-index: 1;
   height: 34px;
-  padding: 0 16px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  font-size: 0.84rem;
+  gap: 7px;
+  font-size: 0.82rem;
   font-weight: var(--fw-semi);
   color: var(--text-muted);
   transition: color var(--ease);
@@ -82,6 +83,7 @@
 .dash-mode-btn.active i { color: var(--gold-deep); }
 [data-theme="dark"] .dash-mode-btn.active i { color: var(--gold); }
 #btnModeVR.active i { color: var(--income-dark); }
+#btnModeVA.active i { color: var(--c-sky); }
 
 /* ═══════════════ HERO — SALDO ═══════════════ */
 .balance-card {
@@ -275,11 +277,17 @@
   color: var(--ink-text-3);
 }
 
-/* Modo VR — o hero vira verde */
+/* Modo VR — o hero vira verde esmeralda */
 .balance-card.vr-mode { background: radial-gradient(120% 140% at 100% 0%, #1E5A47 0%, #0B2A22 60%); }
 .balance-card.vr-mode .balance-label { color: #6EE7B7; }
 .balance-card.vr-mode::before { background: linear-gradient(90deg, transparent, #34D399 40%, #6EE7B7 50%, #34D399 60%, transparent); }
 .balance-card.vr-mode .balance-meter-fill { background: linear-gradient(90deg, #0F9F74, #6EE7B7); }
+
+/* Modo VA — o hero vira azul/ciano oceano */
+.balance-card.va-mode { background: radial-gradient(120% 140% at 100% 0%, #154965 0%, #091E2C 60%); }
+.balance-card.va-mode .balance-label { color: #7DD3FC; }
+.balance-card.va-mode::before { background: linear-gradient(90deg, transparent, #38BDF8 40%, #7DD3FC 50%, #38BDF8 60%, transparent); }
+.balance-card.va-mode .balance-meter-fill { background: linear-gradient(90deg, #0284C7, #7DD3FC); }
 
 /* ═══════════════ RESUMO DO MÊS ═══════════════ */
 .dash-summary-head { margin-bottom: 12px; }
@@ -369,17 +377,38 @@
 .tone-sky   { --tone: var(--c-sky); }
 [data-theme="dark"] .tone-slate { --tone: #94A3B8; }
 
-/* ═══════════════ VR / VA ═══════════════ */
+/* ═══════════════ VR e VA separados ═══════════════ */
+.benefits-dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
 .vr-dashboard-card {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  margin-bottom: 28px;
   border-radius: var(--r-lg);
   background: var(--bg-card);
   border: 1px solid var(--border);
   box-shadow: inset 4px 0 0 var(--income);
+  cursor: pointer;
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+.vr-dashboard-card:hover { border-color: var(--border-strong); }
+.va-dashboard-card {
+  box-shadow: inset 4px 0 0 var(--c-sky);
+}
+.va-dashboard-card .vr-dash-icon {
+  background: color-mix(in srgb, var(--c-sky) 14%, transparent);
+  color: var(--c-sky);
+}
+.vr-dash-sub {
+  font-size: 0.72rem;
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  margin-left: 4px;
 }
 .vr-dash-header { display: flex; align-items: center; gap: 10px; }
 .vr-dash-header h3 { font-size: 0.95rem; font-weight: var(--fw-bold); flex: 1; }
@@ -417,8 +446,11 @@
 .vr-kpi-item-label { font-size: 0.72rem; color: var(--text-secondary); }
 .vr-kpi-item-val { font-family: var(--font-display); font-size: 1.15rem; font-weight: var(--fw-bold); letter-spacing: -0.02em; }
 
+.vr-kpi-summary.va-mode .vr-kpi-summary-title { color: var(--c-sky); }
+
 .dashboard-vr-mode .dash-summary-head,
 .dashboard-vr-mode .dash-summary-panel,
+.dashboard-vr-mode .benefits-dash-grid,
 .dashboard-vr-mode .vr-dashboard-card,
 .dashboard-vr-mode .chart-debt-type { display: none !important; }
 .dashboard-vr-mode .vr-kpi-summary { display: block; }
@@ -485,7 +517,10 @@
 .values-hidden .trans-amount,
 .values-hidden #vrBalance,
 .values-hidden #vrIncome,
-.values-hidden #vrExpense {
+.values-hidden #vrExpense,
+.values-hidden #vaBalance,
+.values-hidden #vaIncome,
+.values-hidden #vaExpense {
   filter: blur(9px);
   user-select: none;
   transition: filter var(--ease);
@@ -505,7 +540,7 @@
   .months-scroll-wrap { flex: 1; margin: 0; padding: 0; -webkit-mask-image: none; mask-image: none; }
   .months-scroller { overflow: visible; flex-wrap: nowrap; }
   .month-btn { padding: 0 12px; }
-  .dash-mode-toggle { width: 240px; }
+  .dash-mode-toggle { width: 300px; }
 
   .balance-card {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);

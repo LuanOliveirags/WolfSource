@@ -430,7 +430,7 @@ export function markDuplicates(items, existing, salaries = []) {
   const key = t => `${t.date}|${t.type}|${Number(t.amount).toFixed(2)}`;
   realExisting.forEach(t => counts.set(key(t), (counts.get(key(t)) || 0) + 1));
 
-  const availSalaries = (salaries || []).filter(s => s && s.salaryType !== 'vr').map(s => ({ ...s, _used: false }));
+  const availSalaries = (salaries || []).filter(s => s && s.salaryType !== 'vr' && s.salaryType !== 'va').map(s => ({ ...s, _used: false }));
 
   return items.map(item => {
     if (item.ref && refs.has(item.ref)) return { ...item, duplicate: true };

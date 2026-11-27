@@ -31,7 +31,10 @@
                 <i class="fa-solid fa-wallet"></i> Geral
             </button>
             <button class="dash-mode-btn" data-mode="vr" id="btnModeVR">
-                <i class="fa-solid fa-utensils"></i> VR / VA
+                <i class="fa-solid fa-utensils"></i> VR
+            </button>
+            <button class="dash-mode-btn" data-mode="va" id="btnModeVA">
+                <i class="fa-solid fa-basket-shopping"></i> VA
             </button>
         </div>
     </div>
@@ -153,31 +156,52 @@
         </div>
     </div><!-- /dashSummaryPanel -->
 
-    <!-- VR/VA (modo geral) -->
-    <div class="vr-dashboard-card" id="vrDashboardCard">
-        <div class="vr-dash-header">
-            <div class="vr-dash-icon"><i class="fa-solid fa-utensils"></i></div>
-            <h3>VR / VA</h3>
-            <span class="vr-dash-balance-label">Saldo</span>
-            <span class="vr-dash-balance-val" id="vrBalance">R$ 0,00</span>
-        </div>
-        <div class="vr-dash-grid">
-            <div class="vr-dash-item vr-income">
-                <span class="vr-dash-item-label"><i class="fa-solid fa-arrow-down"></i> Recebido</span>
-                <span class="vr-dash-item-val" id="vrIncome">R$ 0,00</span>
+    <!-- Cartões VR e VA separados (modo geral) -->
+    <div class="benefits-dash-grid" id="benefitsDashboardGrid" style="display:none">
+        <div class="vr-dashboard-card" id="vrDashboardCard" data-switch-mode="vr" role="button" tabindex="0" title="Ver detalhes do VR">
+            <div class="vr-dash-header">
+                <div class="vr-dash-icon"><i class="fa-solid fa-utensils"></i></div>
+                <h3>VR <small class="vr-dash-sub">Refeição</small></h3>
+                <span class="vr-dash-balance-label">Saldo</span>
+                <span class="vr-dash-balance-val" id="vrBalance">R$ 0,00</span>
             </div>
-            <div class="vr-dash-item vr-expense">
-                <span class="vr-dash-item-label"><i class="fa-solid fa-arrow-up"></i> Gasto</span>
-                <span class="vr-dash-item-val" id="vrExpense">R$ 0,00</span>
+            <div class="vr-dash-grid">
+                <div class="vr-dash-item vr-income">
+                    <span class="vr-dash-item-label"><i class="fa-solid fa-arrow-down"></i> Recebido</span>
+                    <span class="vr-dash-item-val" id="vrIncome">R$ 0,00</span>
+                </div>
+                <div class="vr-dash-item vr-expense">
+                    <span class="vr-dash-item-label"><i class="fa-solid fa-arrow-up"></i> Gasto</span>
+                    <span class="vr-dash-item-val" id="vrExpense">R$ 0,00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="vr-dashboard-card va-dashboard-card" id="vaDashboardCard" data-switch-mode="va" role="button" tabindex="0" title="Ver detalhes do VA">
+            <div class="vr-dash-header">
+                <div class="vr-dash-icon"><i class="fa-solid fa-basket-shopping"></i></div>
+                <h3>VA <small class="vr-dash-sub">Alimentação</small></h3>
+                <span class="vr-dash-balance-label">Saldo</span>
+                <span class="vr-dash-balance-val" id="vaBalance">R$ 0,00</span>
+            </div>
+            <div class="vr-dash-grid">
+                <div class="vr-dash-item vr-income">
+                    <span class="vr-dash-item-label"><i class="fa-solid fa-arrow-down"></i> Recebido</span>
+                    <span class="vr-dash-item-val" id="vaIncome">R$ 0,00</span>
+                </div>
+                <div class="vr-dash-item vr-expense">
+                    <span class="vr-dash-item-label"><i class="fa-solid fa-arrow-up"></i> Gasto</span>
+                    <span class="vr-dash-item-val" id="vaExpense">R$ 0,00</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Resumo VR (somente no modo VR) -->
+    <!-- Resumo do benefício ativo (somente nos modos VR ou VA) -->
     <div class="vr-kpi-summary" id="vrKpiSummary">
         <div class="vr-kpi-summary-card">
-            <p class="vr-kpi-summary-title">
-                <i class="fa-solid fa-chart-simple"></i> Resumo VR / VA
+            <p class="vr-kpi-summary-title" id="benefitSummaryTitle">
+                <i class="fa-solid fa-chart-simple"></i> Resumo VR
             </p>
             <div class="vr-kpi-summary-grid">
                 <div class="vr-kpi-item">
@@ -193,7 +217,7 @@
                     <p class="vr-kpi-item-val" id="vrMaxExpense">R$ 0,00</p>
                 </div>
                 <div class="vr-kpi-item">
-                    <p class="vr-kpi-item-label">% do VR usado</p>
+                    <p class="vr-kpi-item-label" id="benefitUsageLabel">% do VR usado</p>
                     <p class="vr-kpi-item-val" id="vrUsagePercent">0%</p>
                 </div>
             </div>

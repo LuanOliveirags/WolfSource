@@ -83,8 +83,14 @@ export function groupByDate(transactions) {
 
 // ===== CONCILIAÇÃO E SALDO ACUMULADO EM CONTA =====
 
-function matchesMode(paymentOrSalaryType, mode) {
-  return mode === 'vr' ? paymentOrSalaryType === 'vr' : paymentOrSalaryType !== 'vr';
+export function isBenefitMode(val) {
+  return val === 'vr' || val === 'va';
+}
+
+export function matchesWalletMode(paymentOrSalaryType, mode = 'geral') {
+  if (mode === 'vr') return paymentOrSalaryType === 'vr';
+  if (mode === 'va') return paymentOrSalaryType === 'va';
+  return !isBenefitMode(paymentOrSalaryType);
 }
 
 export function getCheckpointValue(cp) {
@@ -95,13 +101,13 @@ export function getCheckpointValue(cp) {
   return round2(cp.type === 'saida' ? -Number(cp.amount || 0) : Number(cp.amount || 0));
 }
 
-/** Último marco de saldo (checkpoint) com data <= upToDate para o modo ('geral' | 'vr'). */
+/** Último marco de saldo (checkpoint) com data <= upToDate para o modo ('geral' | 'vr' | 'va'). */
 export function getLatestCheckpoint(transactions, upToDate, mode = 'geral') {
   const candidates = (transactions || []).filter(t =>
     t?.isBalanceAdjustment &&
     t.date &&
     t.date <= upToDate &&
-    matchesMode(t.paymentMethod, mode)
+    matchesWalletMode(t.paymentMethod, mode)
   );
   if (!candidates.length) return null;
   return candidates.sort((a, b) =>
@@ -114,14 +120,14 @@ export function sumNetBetween(transactions, salaries = [], fromDate = '0000-00-0
   let sum = 0;
   for (const t of transactions || []) {
     if (!t || t.isBalanceAdjustment || !t.date) continue;
-    if (!matchesMode(t.paymentMethod, mode)) continue;
+    if (!matchesWalletMode(t.paymentMethod, mode)) continue;
     if (t.date >= fromDate && t.date <= toDate) {
       sum += t.type === 'entrada' ? Number(t.amount || 0) : -Number(t.amount || 0);
     }
   }
   for (const s of salaries || []) {
     if (!s || !s.date) continue;
-    if (!matchesMode(s.salaryType, mode)) continue;
+    if (!matchesWalletMode(s.salaryType, mode)) continue;
     if (s.date >= fromDate && s.date <= toDate) {
       sum += Number(s.amount || 0);
     }

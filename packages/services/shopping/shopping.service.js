@@ -284,7 +284,7 @@ export function editItem(list, itemId, patch) {
 
 // ===== CHECKOUT =====
 
-const PAY_LABELS = { dinheiro: 'Dinheiro', cartao: 'Cartão', pix: 'Pix', vr: 'VR/VA' };
+const PAY_LABELS = { dinheiro: 'Dinheiro', cartao: 'Cartão', pix: 'Pix', vr: 'VR', va: 'VA' };
 
 /**
  * Constrói o objeto de transação a partir do checkout da lista.

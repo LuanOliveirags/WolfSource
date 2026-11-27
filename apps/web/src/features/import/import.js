@@ -14,6 +14,7 @@ import {
   buildTransactionObject,
   buildBalanceCheckpointObject,
   computeBalanceAtDate,
+  matchesWalletMode,
   sumNetBetween
 } from '../../../../../packages/services/transactions/transactions.service.js';
 import {
@@ -268,7 +269,7 @@ function getStatementReconciliation() {
   const firstDate = dates[0];
   const lastDate = dates[dates.length - 1];
   const paymentChoice = $('importPayment')?.value || 'auto';
-  const mode = paymentChoice === 'vr' ? 'vr' : 'geral';
+  const mode = (paymentChoice === 'vr' || paymentChoice === 'va') ? paymentChoice : 'geral';
 
   const selected = rows.filter(r => r.selected);
   const netSelected = round2(selected.reduce((s, r) => s + (r.type === 'entrada' ? r.amount : -r.amount), 0));
@@ -476,14 +477,14 @@ async function confirmImport() {
   });
 
   if (shouldWriteCheckpoint) {
-    const cpPayment = recon.mode === 'vr' ? 'vr' : 'conta';
+    const cpPayment = (recon.mode === 'vr' || recon.mode === 'va') ? recon.mode : 'conta';
     // Remove marcos antigos dentro do mesmo período para não empilhar ajustes conflitantes
     const staleIds = state.transactions
       .filter(t =>
         t.isBalanceAdjustment &&
         t.date >= recon.firstDate &&
         t.date <= recon.lastDate &&
-        (recon.mode === 'vr' ? t.paymentMethod === 'vr' : t.paymentMethod !== 'vr')
+        matchesWalletMode(t.paymentMethod, recon.mode)
       )
       .map(t => t.id);
     if (staleIds.length) {

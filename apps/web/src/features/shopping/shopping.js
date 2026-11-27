@@ -1120,14 +1120,19 @@ export function setupShoppingListeners() {
       document.querySelectorAll('#shopPaymentMethods .shop-pay-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const method = btn.dataset.method;
+      const isBenefit = method === 'vr' || method === 'va';
       document.getElementById('shopPaymentMethod').value = method;
       const hint = document.getElementById('shopPayVrHint');
-      if (hint) hint.style.display = method === 'vr' ? '' : 'none';
+      const hintText = document.getElementById('shopPayVrHintText');
+      if (hint) hint.style.display = isBenefit ? '' : 'none';
+      if (hintText && isBenefit) {
+        hintText.textContent = `Pagamento com ${method.toUpperCase()} será descontado apenas do saldo de ${method.toUpperCase()} (fora dos gastos gerais)`;
+      }
       const regToggle = document.getElementById('shopCheckoutRegister');
       if (regToggle) {
         const toggleWrap = regToggle.closest('.shop-checkout-toggle');
-        if (toggleWrap) toggleWrap.style.display = method === 'vr' ? 'none' : '';
-        if (method === 'vr') regToggle.checked = true;
+        if (toggleWrap) toggleWrap.style.display = isBenefit ? 'none' : '';
+        if (isBenefit) regToggle.checked = true;
       }
     });
   });

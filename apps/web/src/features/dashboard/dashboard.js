@@ -10,12 +10,14 @@ import { saveDataToStorage, saveToFirebase, deleteFromFirebase } from '../../../
 import {
   buildBalanceCheckpointObject,
   computeMonthAccountBalance,
-  getCheckpointValue
+  getCheckpointValue,
+  isBenefitMode,
+  matchesWalletMode
 } from '../../../../../packages/services/transactions/transactions.service.js';
 import { updateRecentTransactions } from '../transactions/transactions.js';
 
 // ===== DASHBOARD MODE STATE =====
-let dashboardMode = 'geral'; // 'geral' | 'vr'
+let dashboardMode = 'geral'; // 'geral' | 'vr' | 'va'
 const round2 = (n) => Math.round(n * 100) / 100;
 
 function getSelectedYearMonth() {
@@ -65,33 +67,53 @@ export function setupKpiClickListeners() {
   });
 }
 
+export function setDashboardMode(mode) {
+  if (!['geral', 'vr', 'va'].includes(mode)) return;
+  dashboardMode = mode;
+
+  const btnGeral = document.getElementById('btnModeGeral');
+  const btnVR = document.getElementById('btnModeVR');
+  const btnVA = document.getElementById('btnModeVA');
+  const slider = document.getElementById('dashModeSlider');
+  const dashboard = document.getElementById('dashboard');
+  const isBenefit = isBenefitMode(mode);
+
+  btnGeral?.classList.toggle('active', mode === 'geral');
+  btnVR?.classList.toggle('active', mode === 'vr');
+  btnVA?.classList.toggle('active', mode === 'va');
+
+  if (slider) {
+    slider.classList.toggle('vr-active', mode === 'vr');
+    slider.classList.toggle('va-active', mode === 'va');
+  }
+
+  dashboard?.classList.toggle('dashboard-vr-mode', isBenefit);
+
+  const balanceCard = document.querySelector('.balance-card');
+  balanceCard?.classList.toggle('vr-mode', mode === 'vr');
+  balanceCard?.classList.toggle('va-mode', mode === 'va');
+  document.querySelectorAll('.ie-card').forEach(c => {
+    c.classList.toggle('vr-mode', mode === 'vr');
+    c.classList.toggle('va-mode', mode === 'va');
+  });
+  document.getElementById('vrKpiSummary')?.classList.toggle('va-mode', mode === 'va');
+
+  updateDashboard();
+}
+
 export function setupDashboardToggle() {
   const btnGeral = document.getElementById('btnModeGeral');
   const btnVR = document.getElementById('btnModeVR');
-  const slider = document.getElementById('dashModeSlider');
+  const btnVA = document.getElementById('btnModeVA');
   if (!btnGeral || !btnVR) return;
 
-  const setMode = (mode) => {
-    dashboardMode = mode;
-    const dashboard = document.getElementById('dashboard');
+  btnGeral.addEventListener('click', () => setDashboardMode('geral'));
+  btnVR.addEventListener('click', () => setDashboardMode('vr'));
+  btnVA?.addEventListener('click', () => setDashboardMode('va'));
 
-    // Toggle active button
-    btnGeral.classList.toggle('active', mode === 'geral');
-    btnVR.classList.toggle('active', mode === 'vr');
-    slider.classList.toggle('vr-active', mode === 'vr');
-
-    // Toggle VR mode class on dashboard section
-    dashboard.classList.toggle('dashboard-vr-mode', mode === 'vr');
-
-    // Toggle VR mode on balance card & IE cards
-    document.querySelector('.balance-card')?.classList.toggle('vr-mode', mode === 'vr');
-    document.querySelectorAll('.ie-card').forEach(c => c.classList.toggle('vr-mode', mode === 'vr'));
-
-    updateDashboard();
-  };
-
-  btnGeral.addEventListener('click', () => setMode('geral'));
-  btnVR.addEventListener('click', () => setMode('vr'));
+  document.querySelectorAll('[data-switch-mode]').forEach(card => {
+    card.addEventListener('click', () => setDashboardMode(card.dataset.switchMode));
+  });
 }
 
 // ===== HIDE/SHOW VALUES TOGGLE =====
@@ -136,7 +158,7 @@ export function setupSummaryToggle() {
   btn.addEventListener('click', () => setCollapsed(!panel.classList.contains('collapsed')));
 }
 
-// ===== AJUSTAR SALDO EM CONTA =====
+// ===== AJUSTAR SALDO EM CONTA / VR / VA =====
 export function setupBalanceAdjustment() {
   const openBtn = document.getElementById('adjustBalanceBtn');
   const modal = document.getElementById('adjustBalanceModal');
@@ -151,19 +173,19 @@ export function setupBalanceAdjustment() {
 
   openBtn.addEventListener('click', () => {
     const { year, month } = getSelectedYearMonth();
-    const isVR = dashboardMode === 'vr';
-    const mode = isVR ? 'vr' : 'geral';
+    const mode = dashboardMode;
     const info = computeMonthAccountBalance(state.transactions, state.salaries, year, month, mode);
     const monthName = new Date(year, month, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
     const titleEl = document.getElementById('adjustBalanceModalTitle');
     if (titleEl) {
-      titleEl.innerHTML = isVR
-        ? '<i class="fa-solid fa-utensils"></i> Ajustar saldo VR / VA'
-        : '<i class="fa-solid fa-scale-balanced"></i> Ajustar saldo em conta';
+      if (mode === 'vr') titleEl.innerHTML = '<i class="fa-solid fa-utensils"></i> Ajustar saldo de VR';
+      else if (mode === 'va') titleEl.innerHTML = '<i class="fa-solid fa-basket-shopping"></i> Ajustar saldo de VA';
+      else titleEl.innerHTML = '<i class="fa-solid fa-scale-balanced"></i> Ajustar saldo em conta';
     }
     const labelEl = document.getElementById('adjustBalanceLabel');
-    if (labelEl) labelEl.textContent = `Saldo em ${monthName} (R$)`;
+    const walletName = mode === 'vr' ? 'VR' : mode === 'va' ? 'VA' : 'conta';
+    if (labelEl) labelEl.textContent = `Saldo de ${walletName} em ${monthName} (R$)`;
 
     input.value = info.closingBalance.toFixed(2);
     if (resetBtn) resetBtn.hidden = !info.hasCheckpoint;
@@ -183,19 +205,18 @@ export function setupBalanceAdjustment() {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const monthStart = `${year}-${mm}-01`;
     const monthEnd = `${year}-${mm}-${String(daysInMonth).padStart(2, '0')}`;
-    const isVR = dashboardMode === 'vr';
-    const mode = isVR ? 'vr' : 'geral';
+    const mode = dashboardMode;
 
     const info = computeMonthAccountBalance(state.transactions, state.salaries, year, month, mode);
     const neededOpening = round2(target - info.monthNet);
 
-    // Substitui qualquer marco de saldo dentro deste mesmo mês para o modo atual
+    // Substitui qualquer marco de saldo dentro deste mesmo mês para a carteira atual (geral, vr ou va)
     const staleIds = state.transactions
       .filter(t =>
         t.isBalanceAdjustment &&
         t.date >= monthStart &&
         t.date <= monthEnd &&
-        (isVR ? t.paymentMethod === 'vr' : t.paymentMethod !== 'vr')
+        matchesWalletMode(t.paymentMethod, mode)
       )
       .map(t => t.id);
 
@@ -205,12 +226,13 @@ export function setupBalanceAdjustment() {
       await Promise.allSettled(staleIds.map(id => deleteFromFirebase('transactions', id)));
     }
 
+    const walletLabel = mode === 'vr' ? 'VR' : mode === 'va' ? 'VA' : 'conta';
     const cp = buildBalanceCheckpointObject({
       checkpointBalance: neededOpening,
       date: monthStart,
       responsible: state.currentUser?.fullName || 'Família',
-      description: 'Ajuste manual de saldo em conta',
-      paymentMethod: isVR ? 'vr' : 'conta',
+      description: `Ajuste manual de saldo (${walletLabel})`,
+      paymentMethod: mode === 'geral' ? 'conta' : mode,
       familyId,
       source: 'manual'
     });
@@ -221,7 +243,7 @@ export function setupBalanceAdjustment() {
 
     close();
     updateDashboard();
-    showAlert(`Saldo ajustado para ${formatCurrency(round2(target))}!`, 'success');
+    showAlert(`Saldo de ${walletLabel} ajustado para ${formatCurrency(round2(target))}!`, 'success');
   });
 
   resetBtn?.addEventListener('click', async () => {
@@ -229,14 +251,14 @@ export function setupBalanceAdjustment() {
     const mm = String(month + 1).padStart(2, '0');
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const monthEnd = `${year}-${mm}-${String(daysInMonth).padStart(2, '0')}`;
-    const isVR = dashboardMode === 'vr';
+    const mode = dashboardMode;
     if (!confirm('Remover os ajustes/saldos iniciais anteriores e mostrar apenas Receita − Despesa do mês?')) return;
 
     const removeIds = state.transactions
       .filter(t =>
         t.isBalanceAdjustment &&
         t.date <= monthEnd &&
-        (isVR ? t.paymentMethod === 'vr' : t.paymentMethod !== 'vr')
+        matchesWalletMode(t.paymentMethod, mode)
       )
       .map(t => t.id);
 
@@ -271,11 +293,14 @@ export function updateDashboard() {
 
   const monthDebts = state.debts.filter(d => d.status === 'active');
 
-  // Separate VR/VA from general
-  const generalTransactions = monthTransactions.filter(t => t.paymentMethod !== 'vr');
+  // Separa Geral, VR e VA de forma independente
+  const generalTransactions = monthTransactions.filter(t => !isBenefitMode(t.paymentMethod));
   const vrTransactions = monthTransactions.filter(t => t.paymentMethod === 'vr');
-  const generalSalaries = monthSalaries.filter(s => s.salaryType !== 'vr');
+  const vaTransactions = monthTransactions.filter(t => t.paymentMethod === 'va');
+
+  const generalSalaries = monthSalaries.filter(s => !isBenefitMode(s.salaryType));
   const vrSalaries = monthSalaries.filter(s => s.salaryType === 'vr');
+  const vaSalaries = monthSalaries.filter(s => s.salaryType === 'va');
 
   const totalExpenses = generalTransactions.filter(t => t.type === 'saida').reduce((sum, t) => sum + t.amount, 0);
   const totalTransactionIncome = generalTransactions.filter(t => t.type === 'entrada').reduce((sum, t) => sum + t.amount, 0);
@@ -284,10 +309,11 @@ export function updateDashboard() {
 
   const generalBalanceInfo = computeMonthAccountBalance(state.transactions, state.salaries, year, month, 'geral');
   const vrBalanceInfo = computeMonthAccountBalance(state.transactions, state.salaries, year, month, 'vr');
+  const vaBalanceInfo = computeMonthAccountBalance(state.transactions, state.salaries, year, month, 'va');
 
   const totalBalance = generalBalanceInfo.closingBalance;
   const totalDebt = monthDebts.reduce((sum, d) => sum + d.amount, 0);
-  const responsibleCount = new Set(monthTransactions.map(t => t.responsible)).size;
+  const responsibleCount = new Set(generalTransactions.map(t => t.responsible)).size;
 
   const isInstallmentType = d => (d.debtType === 'financiamento' || d.debtType === 'parcelada' || d.debtType === 'emprestimo') || (d.debtType === 'cartao' && d.cartaoMode === 'parcelado');
   const monthlyDebtsActive = monthDebts.filter(d => !isInstallmentType(d));
@@ -311,39 +337,66 @@ export function updateDashboard() {
     return tDate.getMonth() === month && tDate.getFullYear() === year;
   });
   const totalPaidDebts = paidDebtsThisMonth.reduce((sum, t) => sum + t.amount, 0);
-  const totalMonthDeductions = monthSalaries.reduce((sum, s) => sum + (s.totalDeductions || 0), 0);
+  const totalMonthDeductions = generalSalaries.reduce((sum, s) => sum + (s.totalDeductions || 0), 0);
 
-  // VR/VA values (always computed)
-  const vrIncomeTotal = vrSalaries.reduce((sum, s) => sum + s.amount, 0);
+  // Totais isolados de VR e de VA
+  const vrIncomeTotal = vrSalaries.reduce((sum, s) => sum + s.amount, 0) +
+    vrTransactions.filter(t => t.type === 'entrada').reduce((sum, t) => sum + t.amount, 0);
   const vrExpenseTotal = vrTransactions.filter(t => t.type === 'saida').reduce((sum, t) => sum + t.amount, 0);
   const vrBalanceVal = vrBalanceInfo.closingBalance;
 
+  const vaIncomeTotal = vaSalaries.reduce((sum, s) => sum + s.amount, 0) +
+    vaTransactions.filter(t => t.type === 'entrada').reduce((sum, t) => sum + t.amount, 0);
+  const vaExpenseTotal = vaTransactions.filter(t => t.type === 'saida').reduce((sum, t) => sum + t.amount, 0);
+  const vaBalanceVal = vaBalanceInfo.closingBalance;
+
   const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
 
-  if (dashboardMode === 'vr') {
-    // === VR MODE: Main cards show VR data ===
-    document.getElementById('totalBalance').textContent = formatCurrency(vrBalanceVal);
-    document.getElementById('totalExpenses').textContent = formatCurrency(vrExpenseTotal);
-    el('totalIncomeDash', formatCurrency(vrIncomeTotal));
+  let activeIncomeForMeter = totalIncome;
+  let activeExpenseForMeter = totalExpenses;
+  let activeBalanceForPulse = totalBalance;
 
-    // VR KPI Summary
-    const vrExpenses = vrTransactions.filter(t => t.type === 'saida');
-    const vrCount = vrExpenses.length;
-    const vrAvg = vrCount > 0 ? vrExpenseTotal / vrCount : 0;
-    const vrMax = vrCount > 0 ? Math.max(...vrExpenses.map(t => t.amount)) : 0;
-    const vrPct = vrIncomeTotal > 0 ? Math.min(100, (vrExpenseTotal / vrIncomeTotal) * 100) : 0;
+  if (dashboardMode === 'vr' || dashboardMode === 'va') {
+    const isVA = dashboardMode === 'va';
+    const bLabel = isVA ? 'VA' : 'VR';
+    const bTx = isVA ? vaTransactions : vrTransactions;
+    const bSal = isVA ? vaSalaries : vrSalaries;
+    const bIncome = isVA ? vaIncomeTotal : vrIncomeTotal;
+    const bExpense = isVA ? vaExpenseTotal : vrExpenseTotal;
+    const bBal = isVA ? vaBalanceVal : vrBalanceVal;
+    const bInfo = isVA ? vaBalanceInfo : vrBalanceInfo;
 
-    el('vrPurchaseCount', String(vrCount));
-    el('vrAvgTicket', formatCurrency(vrAvg));
-    el('vrMaxExpense', formatCurrency(vrMax));
-    el('vrUsagePercent', `${vrPct.toFixed(0)}%`);
+    activeIncomeForMeter = bIncome;
+    activeExpenseForMeter = bExpense;
+    activeBalanceForPulse = bBal;
 
-    updateCarryInfo(vrBalanceInfo);
-    updateCharts(vrTransactions, [], vrSalaries, vrBalanceInfo);
-    updateRecentTransactions(vrTransactions);
+    document.getElementById('totalBalance').textContent = formatCurrency(bBal);
+    document.getElementById('totalExpenses').textContent = formatCurrency(bExpense);
+    el('totalIncomeDash', formatCurrency(bIncome));
+
+    const summaryTitle = document.getElementById('benefitSummaryTitle');
+    if (summaryTitle) {
+      summaryTitle.innerHTML = `<i class="fa-solid fa-chart-simple"></i> Resumo ${bLabel}`;
+    }
+    el('benefitUsageLabel', `% do ${bLabel} usado`);
+
+    const bExpenses = bTx.filter(t => t.type === 'saida');
+    const bCount = bExpenses.length;
+    const bAvg = bCount > 0 ? bExpense / bCount : 0;
+    const bMax = bCount > 0 ? Math.max(...bExpenses.map(t => t.amount)) : 0;
+    const bPct = bIncome > 0 ? Math.min(100, (bExpense / bIncome) * 100) : 0;
+
+    el('vrPurchaseCount', String(bCount));
+    el('vrAvgTicket', formatCurrency(bAvg));
+    el('vrMaxExpense', formatCurrency(bMax));
+    el('vrUsagePercent', `${bPct.toFixed(0)}%`);
+
+    updateCarryInfo(bInfo);
+    updateCharts(bTx, [], bSal, bInfo);
+    updateRecentTransactions(bTx);
 
   } else {
-    // === GERAL MODE ===
+    // === MODO GERAL (sem misturar VR nem VA) ===
     document.getElementById('totalExpenses').textContent = formatCurrency(totalExpenses);
     document.getElementById('totalBalance').textContent = formatCurrency(totalBalance);
     document.getElementById('totalSpent').textContent = formatCurrency(totalDebt);
@@ -359,45 +412,55 @@ export function updateDashboard() {
     el('totalDeductionsDash', formatCurrency(totalMonthDeductions));
     el('totalIncomeDash', formatCurrency(totalIncome));
 
-    // VR/VA small card (only in geral mode)
+    // Mini cards separados de VR e VA (apenas no modo geral)
     el('vrIncome', formatCurrency(vrIncomeTotal));
     el('vrExpense', formatCurrency(vrExpenseTotal));
     el('vrBalance', formatCurrency(vrBalanceVal));
+    const showVR = vrIncomeTotal > 0 || vrExpenseTotal > 0 || vrBalanceInfo.hasCheckpoint;
     const vrCard = document.getElementById('vrDashboardCard');
-    if (vrCard) vrCard.style.display = (vrIncomeTotal > 0 || vrExpenseTotal > 0 || vrBalanceInfo.hasCheckpoint) ? '' : 'none';
+    if (vrCard) vrCard.style.display = showVR ? '' : 'none';
+
+    el('vaIncome', formatCurrency(vaIncomeTotal));
+    el('vaExpense', formatCurrency(vaExpenseTotal));
+    el('vaBalance', formatCurrency(vaBalanceVal));
+    const showVA = vaIncomeTotal > 0 || vaExpenseTotal > 0 || vaBalanceInfo.hasCheckpoint;
+    const vaCard = document.getElementById('vaDashboardCard');
+    if (vaCard) vaCard.style.display = showVA ? '' : 'none';
+
+    const benefitsGrid = document.getElementById('benefitsDashboardGrid');
+    if (benefitsGrid) benefitsGrid.style.display = (showVR || showVA) ? '' : 'none';
 
     updateCarryInfo(generalBalanceInfo);
     updateCharts(generalTransactions, monthDebts, generalSalaries, generalBalanceInfo);
-    updateRecentTransactions(monthTransactions);
+    updateRecentTransactions(generalTransactions);
   }
 
-  // Medidor do hero (quanto da receita já saiu) + mês por extenso no cabeçalho
-  const isVRMode = dashboardMode === 'vr';
-  updateBalanceMeter(isVRMode ? vrIncomeTotal : totalIncome, isVRMode ? vrExpenseTotal : totalExpenses, isVRMode);
+  // Medidor do hero + mês por extenso no cabeçalho
+  updateBalanceMeter(activeIncomeForMeter, activeExpenseForMeter, dashboardMode);
   const monthLabel = document.getElementById('dashMonthLabel');
   if (monthLabel) monthLabel.textContent = new Date(year, month, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
-  // Update balance label
+  // Rótulo do saldo principal
   const balanceLabel = document.querySelector('.balance-label');
   if (balanceLabel) {
-    if (isVRMode) balanceLabel.textContent = 'Saldo VR / VA';
+    if (dashboardMode === 'vr') balanceLabel.textContent = 'Saldo VR (Vale Refeição)';
+    else if (dashboardMode === 'va') balanceLabel.textContent = 'Saldo VA (Vale Alimentação)';
     else balanceLabel.textContent = generalBalanceInfo.hasCheckpoint ? 'Saldo em conta' : 'Saldo líquido';
   }
 
-  // Dynamic balance pulse — card "breathes" based on financial health
+  // Pulso dinâmico de saúde financeira
   const balanceCard = document.querySelector('.balance-card');
   if (balanceCard) {
     balanceCard.classList.remove('positive-pulse', 'negative-pulse');
-    const bal = isVRMode ? vrBalanceVal : totalBalance;
-    if (bal > 0) balanceCard.classList.add('positive-pulse');
-    else if (bal < 0) balanceCard.classList.add('negative-pulse');
+    if (activeBalanceForPulse > 0) balanceCard.classList.add('positive-pulse');
+    else if (activeBalanceForPulse < 0) balanceCard.classList.add('negative-pulse');
   }
 
-  // Value flash on balance update
+  // Flash de atualização
   const balanceEl = document.getElementById('totalBalance');
   if (balanceEl) {
     balanceEl.classList.remove('value-updated');
-    void balanceEl.offsetWidth; // force reflow
+    void balanceEl.offsetWidth;
     balanceEl.classList.add('value-updated');
   }
 }
@@ -419,7 +482,7 @@ function updateCarryInfo(balanceInfo) {
 }
 
 // ===== MEDIDOR DO HERO =====
-function updateBalanceMeter(income, expense, isVR) {
+function updateBalanceMeter(income, expense, mode) {
   const fill = document.getElementById('balanceMeterFill');
   const caption = document.getElementById('balanceMeterCaption');
   if (!fill || !caption) return;
@@ -427,13 +490,13 @@ function updateBalanceMeter(income, expense, isVR) {
   fill.style.setProperty('--meter', `${Math.min(100, pct)}%`);
   fill.classList.toggle('is-warn', pct >= 75 && pct < 100);
   fill.classList.toggle('is-danger', pct >= 100);
+  const scopeLabel = mode === 'vr' ? 'do VR' : mode === 'va' ? 'do VA' : 'da receita';
   if (income <= 0 && expense <= 0) caption.textContent = 'Sem movimentações no mês';
-  else if (income <= 0) caption.innerHTML = `<strong>${formatCurrency(expense)}</strong> em saídas, sem receita registrada`;
-  else caption.innerHTML = `<strong>${pct.toFixed(0)}%</strong> ${isVR ? 'do VR/VA' : 'da receita'} já comprometido`;
+  else if (income <= 0) caption.innerHTML = `<strong>${formatCurrency(expense)}</strong> em saídas, sem entrada registrada`;
+  else caption.innerHTML = `<strong>${pct.toFixed(0)}%</strong> ${scopeLabel} já comprometido`;
 }
 
 // ===== TEMA DOS GRÁFICOS =====
-// Lê os tokens do CSS para que os gráficos acompanhem o tema claro/escuro.
 function chartTheme() {
   const css = getComputedStyle(document.documentElement);
   const v = (name) => css.getPropertyValue(name).trim();
@@ -480,7 +543,6 @@ export function updateCharts(transactions, debts, salaries = [], balanceInfo = n
 }
 
 // ===== SPARKLINE =====
-// Saldo acumulado dia a dia (saldo anterior + transações + salários), coerente com o número do hero.
 function createBalanceSparkline(transactions, salaries = [], balanceInfo = null) {
   const ctx = document.getElementById('monthlyChart');
   if (!ctx) return null;
@@ -504,7 +566,7 @@ function createBalanceSparkline(transactions, salaries = [], balanceInfo = null)
   const intraDay = intraCp ? parseInt(intraCp.date.slice(8, 10), 10) : null;
   const intraBase = intraCp ? getCheckpointValue(intraCp) : 0;
 
-  let cum = intraCp ? (balanceInfo?.carryOver || 0) : (balanceInfo?.carryOver || 0);
+  let cum = balanceInfo?.carryOver || 0;
   const cumData = dailyNet.map((v, idx) => {
     if (intraDay && idx + 1 === intraDay) cum = intraBase;
     cum = round2(cum + v);
@@ -514,8 +576,11 @@ function createBalanceSparkline(transactions, salaries = [], balanceInfo = null)
   if (!cumData.some(v => v !== 0) && !dailyNet.some(v => v !== 0)) { ctx.style.display = 'none'; return null; }
   ctx.style.display = '';
 
-  const isVR = dashboardMode === 'vr';
-  const rgb = isVR ? '110,231,183' : '233,196,119';
+  const rgb = dashboardMode === 'vr'
+    ? '110,231,183'
+    : dashboardMode === 'va'
+      ? '125,211,252'
+      : '233,196,119';
 
   return new Chart(ctx, {
     type: 'line',
@@ -559,8 +624,6 @@ function createCategoryChart(transactions, theme) {
   const categories = {};
   transactions.filter(t => t.type === 'saida').forEach(t => { categories[t.category] = (categories[t.category] || 0) + t.amount; });
   if (Object.keys(categories).length === 0) return null;
-  // Maior fatia primeiro: a paleta segue a ordem de importância.
-  // Acima de 7 fatias, as menores viram "Outras" para a legenda continuar legível.
   let entries = Object.entries(categories).sort((a, b) => b[1] - a[1]);
   if (entries.length > 7) {
     const rest = entries.slice(6).reduce((sum, [, v]) => sum + v, 0);
@@ -625,7 +688,7 @@ function createDebtTypeChart(debts, theme) {
   const c = (name) => css.getPropertyValue(name).trim();
   const typeMap = {
     unica: { label: 'Únicas', color: c('--c-slate') }, fixa: { label: 'Fixas', color: c('--c-amber') },
-    cartao: { label: 'Cartão', color: c('--c-plum') }, emprestimo: { label: 'Empréstimo', color: c('--c-coral') },
+    cartao: { label: 'Cartão', color: c('--c-plum') }, emprestimo: { label: 'Empréstimos', color: c('--c-coral') },
     financiamento: { label: 'Financiamento', color: c('--c-navy') }, parcelada: { label: 'Financiamento', color: c('--c-navy') }
   };
   const totals = {};

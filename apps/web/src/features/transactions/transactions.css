@@ -87,6 +87,7 @@
 .trans-amount.entrada { color: var(--income-dark); }
 .trans-amount.saida   { color: var(--text-primary); }
 .trans-amount.vr-amount { color: var(--income-dark); }
+.trans-amount.va-amount { color: var(--c-sky); }
 
 /* Lixeira só aparece no hover quando há mouse */
 @media (hover: hover) and (pointer: fine) {
@@ -95,7 +96,8 @@
   .transaction-item .btn-delete:focus-visible { opacity: 1; }
 }
 
-.vr-badge {
+.vr-badge,
+.va-badge {
   display: inline-block;
   margin-left: 6px;
   padding: 1px 6px;
@@ -104,8 +106,14 @@
   font-weight: var(--fw-bold);
   letter-spacing: 0.04em;
   vertical-align: 2px;
+}
+.vr-badge {
   color: var(--income-dark);
   background: var(--income-bg);
+}
+.va-badge {
+  color: var(--c-sky);
+  background: color-mix(in srgb, var(--c-sky) 14%, transparent);
 }
 
 /* Tons por categoria (ícone + selo) */
@@ -125,6 +133,7 @@
 .cat-entrada, .cat-salario { --cat: var(--c-green); }
 .cat-saida         { --cat: var(--c-coral); }
 .cat-vr            { --cat: var(--c-green); }
+.cat-va            { --cat: var(--c-sky); }
 
 /* ═══════════════ ABA TRANSAÇÕES ═══════════════ */
 /* Semana: chip "Tudo" + 7 dias numa grade */
