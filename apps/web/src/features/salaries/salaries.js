@@ -10,6 +10,7 @@ import { saveDataToStorage, saveToFirebase, deleteFromFirebase } from '../../../
 import { updateDashboard } from '../dashboard/dashboard.js';
 import {
   buildSalaryObject,
+  extractCompetenciaKey,
   filterByMonth,
   getSalaryMonths,
   computeSalaryStats,
@@ -44,26 +45,41 @@ export function addSalary(e) {
 
   if (!salary.person || !grossAmount || !salary.date) { alert('Preencha todos os campos!'); return; }
 
-  const existingSame = state.salaries.find(s =>
-    s.person === salary.person &&
-    (s.salaryType || 'salario') === salary.salaryType &&
-    Math.abs(Number(s.amount) - Number(salary.amount)) <= 0.02 &&
-    Math.abs(new Date(s.date + 'T12:00:00') - new Date(salary.date + 'T12:00:00')) <= 10 * 86400000
-  );
-  if (existingSame && !confirm(`Já existe uma entrada de ${formatCurrency(existingSame.amount)} em ${formatDate(existingSame.date)} para ${salary.person}. Registrar mesmo assim?`)) {
-    return;
+  const newComp = extractCompetenciaKey(salary.description);
+  const isRegular = salary.salaryType !== 'vr' && salary.salaryType !== 'va';
+  const existingIdx = state.salaries.findIndex(s => {
+    if (s.person !== salary.person) return false;
+    if ((s.salaryType || 'salario') !== salary.salaryType) return false;
+    const sComp = extractCompetenciaKey(s.description);
+    if (isRegular && newComp && sComp && newComp === sComp) return true;
+    const dayWindow = isRegular ? 15 : 0;
+    return (
+      Math.abs(Number(s.amount) - Number(salary.amount)) <= 0.02 &&
+      Math.abs(new Date(s.date + 'T12:00:00') - new Date(salary.date + 'T12:00:00')) <= dayWindow * 86400000
+    );
+  });
+
+  let savedSalary = salary;
+  if (existingIdx !== -1) {
+    const existingSame = state.salaries[existingIdx];
+    if (!confirm(`Já existe "${existingSame.description || 'Salário'}" (${formatCurrency(existingSame.amount)} em ${formatDate(existingSame.date)}) para ${salary.person}.\n\nDeseja atualizar esse registro existente em vez de duplicar?`)) {
+      return;
+    }
+    savedSalary = { ...salary, id: existingSame.id };
+    state.salaries[existingIdx] = savedSalary;
+  } else {
+    state.salaries.push(savedSalary);
   }
 
-  state.salaries.push(salary);
   saveDataToStorage();
-  saveToFirebase('salaries', salary);
+  saveToFirebase('salaries', savedSalary);
 
   const { salaryEffectiveDate } = matchSalaryDeposits(state.transactions, state.salaries);
-  const reconciledWithStatement = salaryEffectiveDate.has(salary.id);
+  const reconciledWithStatement = salaryEffectiveDate.has(savedSalary.id);
   showAlert(
-    reconciledWithStatement
-      ? 'Holerite registrado e conciliado automaticamente com o crédito do extrato!'
-      : 'Entrada registrada!',
+    existingIdx !== -1
+      ? (reconciledWithStatement ? 'Holerite atualizado e conciliado com o extrato!' : 'Entrada atualizada!')
+      : (reconciledWithStatement ? 'Holerite registrado e conciliado automaticamente com o crédito do extrato!' : 'Entrada registrada!'),
     'success'
   );
 
@@ -315,20 +331,29 @@ export function setupDeductionListeners() {
 }
 
 // ===== DISPLAY PRINCIPAL =====
-export function updateSalaryDisplay() {
-  const members  = state.familyMembers || [];
-  const monthVal = document.getElementById('monthFilter')?.value;
+const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+let _userPickedSalaryMonth = false;
+
+export function updateSalaryDisplay({ syncMonthKey = '', fromSalaryFilter = false } = {}) {
+  if (fromSalaryFilter) _userPickedSalaryMonth = true;
+  if (syncMonthKey) _userPickedSalaryMonth = false;
+
+  const activeKey = populateSalaryMonthFilter({ syncMonthKey, preserveUserChoice: _userPickedSalaryMonth });
+  const members = state.familyMembers || [];
 
   let curMonth, curYear;
-  if (monthVal) {
-    const [y, m] = monthVal.split('-');
-    curYear  = parseInt(y);
-    curMonth = parseInt(m) - 1;
+  const effectiveKey = activeKey || document.getElementById('monthFilter')?.value;
+  if (effectiveKey) {
+    const [y, m] = effectiveKey.split('-');
+    curYear  = parseInt(y, 10);
+    curMonth = parseInt(m, 10) - 1;
   } else {
     const now = new Date();
     curMonth = now.getMonth();
     curYear  = now.getFullYear();
   }
+
+  const refTag = `${MONTHS_SHORT[curMonth]}/${curYear}`;
 
   const {
     byMember,
@@ -347,39 +372,57 @@ export function updateSalaryDisplay() {
     el(`salary_${slug}`, formatCurrency(stats.monthly));
     el(`vr_${slug}`,     formatCurrency(stats.vrMonthly));
     el(`va_${slug}`,     formatCurrency(stats.vaMonthly));
-    el(`annual_${slug}`, `Anual: ${formatCurrency(stats.annual)}`);
+    el(`annual_${slug}`, `Ref. ${refTag} · Anual: ${formatCurrency(stats.annual)}`);
   });
 
   const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
   el('combinedSalary',    formatCurrency(combinedMonth));
-  el('combinedAnnual',    `Anual: ${formatCurrency(combinedAnnual)}`);
+  el('combinedAnnual',    `Ref. ${refTag} · Anual: ${formatCurrency(combinedAnnual)}`);
   el('combinedVR',        formatCurrency(combinedVRMonth));
   el('combinedVRAnnual',  `Anual: ${formatCurrency(combinedVRAnnual)}`);
   el('combinedVA',        formatCurrency(combinedVAMonth));
   el('combinedVAAnnual',  `Anual: ${formatCurrency(combinedVAAnnual)}`);
 
-  populateSalaryMonthFilter();
   updateSalaryHistory();
 }
 
 // ===== FILTRO DE MÊS =====
-export function populateSalaryMonthFilter() {
+export function populateSalaryMonthFilter({ syncMonthKey = '', preserveUserChoice = false } = {}) {
   const select = document.getElementById('salaryMonthFilter');
-  if (!select) return;
-  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  if (!select) return '';
   const now = new Date();
   const curKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  const monthsSet = getSalaryMonths(state.salaries);
-  monthsSet.add(curKey);
-  const sorted = Array.from(monthsSet).sort().reverse();
+  const dataMonthsSet = getSalaryMonths(state.salaries);
+  const sortedDataMonths = Array.from(dataMonthsSet).sort().reverse();
+
+  const allMonthsSet = new Set(dataMonthsSet);
+  allMonthsSet.add(curKey);
+  if (syncMonthKey) allMonthsSet.add(syncMonthKey);
+  const sorted = Array.from(allMonthsSet).sort().reverse();
 
   const prevValue = select.value;
   select.innerHTML = sorted.map(key => {
     const [y, m] = key.split('-');
-    return `<option value="${key}">${months[parseInt(m) - 1]} ${y}</option>`;
+    return `<option value="${key}">${MONTHS_SHORT[parseInt(m, 10) - 1]} ${y}</option>`;
   }).join('');
-  select.value = (prevValue && sorted.includes(prevValue)) ? prevValue : curKey;
+
+  let chosen = curKey;
+  if (preserveUserChoice && prevValue && sorted.includes(prevValue)) {
+    chosen = prevValue;
+  } else if (syncMonthKey && dataMonthsSet.has(syncMonthKey)) {
+    chosen = syncMonthKey;
+  } else if (dataMonthsSet.has(curKey)) {
+    chosen = curKey;
+  } else if (sortedDataMonths.length > 0) {
+    // Se o mês atual ainda não tem holerite (ex.: antes do 5º dia útil / dia 30), mostra o último mês com entradas
+    chosen = sortedDataMonths[0];
+  } else if (syncMonthKey && sorted.includes(syncMonthKey)) {
+    chosen = syncMonthKey;
+  }
+
+  select.value = chosen;
+  return chosen;
 }
 
 // ===== HISTÓRICO =====

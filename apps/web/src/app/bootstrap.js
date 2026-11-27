@@ -3,9 +3,9 @@
 // ============================================================
 
 import { loadPages } from './router.js';
-import { initFirebase, setRefreshCallback, saveDataToStorage, saveToFirebase } from '../../../../packages/services/firebase/firebase.service.js';
+import { initFirebase, setRefreshCallback, saveDataToStorage, saveToFirebase, deleteFromFirebase } from '../../../../packages/services/firebase/firebase.service.js';
 import { state } from '../../../../packages/core/state/store.js';
-import { reconcileMisdatedPayslips } from '../../../../packages/services/salaries/salaries.service.js';
+import { reconcileSalariesAndStatements } from '../../../../packages/services/salaries/salaries.service.js';
 import { createDefaultAdmin, checkLoginStatus, initResetPasswordUI } from '../../../../packages/services/auth/auth.service.js';
 import { setupEventListeners, setupOnlineOfflineListeners, initMonthScroller } from '../../../../packages/ui/navigation/navigation.js';
 import { updateDashboard, setupDashboardToggle, setupKpiClickListeners, setupValuesToggle, setupSummaryToggle, setupBalanceAdjustment } from '../features/dashboard/dashboard.js';
@@ -23,11 +23,21 @@ await loadPages();
 
 setRefreshCallback(async () => {
   try {
-    const repairedSalaries = reconcileMisdatedPayslips(state.salaries, state.transactions);
-    if (repairedSalaries.length > 0) {
+    const {
+      keptSalaries,
+      repairedSalaries,
+      removedSalaries,
+      updatedCheckpoints
+    } = reconcileSalariesAndStatements(state.salaries, state.transactions);
+
+    if (removedSalaries.length > 0 || repairedSalaries.length > 0 || updatedCheckpoints.length > 0) {
+      state.salaries = keptSalaries;
       saveDataToStorage();
+      removedSalaries.forEach(s => deleteFromFirebase('salaries', s.id));
       repairedSalaries.forEach(s => saveToFirebase('salaries', s));
+      updatedCheckpoints.forEach(cp => saveToFirebase('transactions', cp));
     }
+
     updateDashboard();
     updateTransactionHistory();
     updateDebtsList();

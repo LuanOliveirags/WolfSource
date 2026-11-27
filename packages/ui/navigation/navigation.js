@@ -187,10 +187,11 @@ export function initMonthScroller() {
 
 export function selectMonth(monthIndex, year) {
   const y = year || new Date().getFullYear();
-  document.getElementById('monthFilter').value = `${y}-${String(monthIndex + 1).padStart(2, '0')}`;
+  const monthKey = `${y}-${String(monthIndex + 1).padStart(2, '0')}`;
+  document.getElementById('monthFilter').value = monthKey;
   document.querySelectorAll('.month-btn').forEach((btn, i) => btn.classList.toggle('active', i === monthIndex));
   updateDashboard();
-  updateSalaryDisplay();
+  updateSalaryDisplay({ syncMonthKey: monthKey });
 }
 
 // ===== WEEK SCROLLER =====
@@ -635,7 +636,7 @@ export function setupEventListeners() {
 
   // Salary month filter
   const salaryMonthFilter = document.getElementById('salaryMonthFilter');
-  if (salaryMonthFilter) salaryMonthFilter.addEventListener('change', () => updateSalaryHistory());
+  if (salaryMonthFilter) salaryMonthFilter.addEventListener('change', () => updateSalaryDisplay({ fromSalaryFilter: true }));
 
   // Resize handler for charts
   window.addEventListener('resize', () => {

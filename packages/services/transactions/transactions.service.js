@@ -38,7 +38,21 @@ export function buildTransactionObject({ type, amount, category, responsible, da
 }
 
 /** Cria um marco de saldo em conta (saldo inicial / conciliação), sincronizado na coleção transactions. */
-export function buildBalanceCheckpointObject({ checkpointBalance, date, responsible, description, paymentMethod = 'conta', familyId, source = 'manual', importBatch = null, importFile = '', importBank = '' }) {
+export function buildBalanceCheckpointObject({
+  checkpointBalance,
+  date,
+  responsible,
+  description,
+  paymentMethod = 'conta',
+  familyId,
+  source = 'manual',
+  importBatch = null,
+  importFile = '',
+  importBank = '',
+  statementOpeningBalance = null,
+  statementClosingBalance = null,
+  statementEndDate = ''
+}) {
   const bal = round2(Number(checkpointBalance) || 0);
   const obj = {
     id: generateId(),
@@ -59,6 +73,13 @@ export function buildBalanceCheckpointObject({ checkpointBalance, date, responsi
   if (importBatch) obj.importBatch = importBatch;
   if (importFile) obj.importFile = importFile;
   if (importBank) obj.importBank = importBank;
+  if (typeof statementOpeningBalance === 'number' && Number.isFinite(statementOpeningBalance)) {
+    obj.statementOpeningBalance = round2(statementOpeningBalance);
+  }
+  if (typeof statementClosingBalance === 'number' && Number.isFinite(statementClosingBalance)) {
+    obj.statementClosingBalance = round2(statementClosingBalance);
+  }
+  if (statementEndDate) obj.statementEndDate = statementEndDate;
   return obj;
 }
 

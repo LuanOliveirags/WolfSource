@@ -503,7 +503,10 @@ async function confirmImport() {
       source: sourceInfo.source,
       importBatch: batchId,
       importFile: sourceInfo.fileName,
-      importBank: sourceInfo.bank || ''
+      importBank: sourceInfo.bank || '',
+      statementOpeningBalance: recon.openingStatement,
+      statementClosingBalance: recon.closingBalance,
+      statementEndDate: recon.lastDate
     });
     transactions.push(cp);
   }
