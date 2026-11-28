@@ -143,6 +143,60 @@ export async function loginUser(login, password) {
   }
 }
 
+// ===== LOGIN COM GOOGLE =====
+// Popup do Google no Firebase Auth → o backend confere o e-mail e devolve a sessão do usuário
+// cadastrado com esse e-mail (mesmo uid e claims do login por senha).
+// No APK (Capacitor) o popup não funciona dentro do WebView, então o botão fica escondido.
+export function isGoogleLoginAvailable() {
+  const isNative = typeof window.Capacitor !== 'undefined' && window.Capacitor.isNativePlatform?.();
+  return !!auth && typeof firebase !== 'undefined' && !!firebase.auth?.GoogleAuthProvider && !isNative;
+}
+
+const GOOGLE_POPUP_ERRORS = {
+  'auth/popup-blocked': 'O navegador bloqueou a janela do Google. Libere pop-ups para este site e tente de novo.',
+  'auth/unauthorized-domain': 'Este endereço não está autorizado no Firebase para entrar com Google.',
+  'auth/operation-not-supported-in-this-environment': 'Entrar com Google não funciona neste aplicativo. Use usuário e senha.',
+  'auth/network-request-failed': 'Sem conexão com a internet. Tente de novo.'
+};
+
+/** Retorna o usuário do Firestore, ou null se a pessoa fechou o popup. */
+export async function loginWithGoogle() {
+  if (!firebaseReady || !auth) throw new Error('Firebase não disponível. Verifique a conexão.');
+
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  let cred;
+  try {
+    cred = await auth.signInWithPopup(provider);
+  } catch (e) {
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return null;
+    console.warn('[Auth] Popup do Google falhou:', e);
+    throw new Error(GOOGLE_POPUP_ERRORS[e.code] || 'Não foi possível entrar com o Google.');
+  }
+
+  try {
+    const idToken = await cred.user.getIdToken();
+    const res = await fetch(`${BACKEND_URL}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.token) throw new Error(body.error || 'Não foi possível entrar com o Google.');
+
+    // Troca a sessão do Google pela sessão do usuário do WolfSource (claims familyId/role)
+    await auth.signInWithCustomToken(body.token);
+    const doc = await db.collection('users').doc(body.userId).get();
+    if (!doc.exists) throw new Error('Usuário não encontrado.');
+    return doc.data();
+  } catch (e) {
+    await auth.signOut().catch(() => {});
+    if (e instanceof TypeError) throw new Error('Não consegui falar com o servidor. Verifique a internet e tente de novo.');
+    throw e;
+  }
+}
+
 export async function registerUser(fullName, email, login, password, familyId) {
   if (!firebaseReady) throw new Error('Firebase não disponível.');
   if (!familyId) throw new Error('É necessário selecionar uma família.');

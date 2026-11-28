@@ -1,6 +1,7 @@
 // ============================================================
 // WolfSource API — Cloudflare Workers (plano gratuito)
 //   POST /api/auth/token   userId + familyId -> custom token do Firebase Auth
+//   POST /api/auth/google  ID token do login Google -> custom token do usuário com aquele e-mail
 //   POST /api/fcm/send     push do chat (exige ID token do Firebase)
 //   GET  /api/health
 // Segredo obrigatório: FIREBASE_SERVICE_ACCOUNT (JSON da conta de serviço).
@@ -61,8 +62,71 @@ async function authToken(request, env) {
   if (fields.familyId?.stringValue !== familyId) return [403, { error: 'familyId não corresponde ao usuário' }];
   const role = fields.role?.stringValue || 'user';
 
-  // Garante o usuário no Firebase Auth e grava as claims persistentes (Firestore Rules usam familyId/role)
-  const base = `https://identitytoolkit.googleapis.com/v1/projects/${project}/accounts`;
+  return [200, { token: await issueSessionToken(env, auth, userId, familyId, role) }];
+}
+
+// Login com Google: o app entra no Firebase Auth pelo popup do Google e manda o ID token.
+// O e-mail (verificado pelo Google) precisa ser o e-mail de um usuário cadastrado no WolfSource;
+// a sessão devolvida é a mesma do login por senha (uid = id do usuário, claims familyId/role).
+async function authGoogle(request, env) {
+  const { idToken } = await readJson(request);
+  if (!idToken) return [400, { error: 'idToken é obrigatório' }];
+
+  const project = env.FIREBASE_PROJECT_ID;
+  let claims;
+  try {
+    claims = await verifyIdToken(idToken, project);
+  } catch {
+    return [401, { error: 'Login do Google inválido ou expirado. Tente de novo.' }];
+  }
+  if (claims.firebase?.sign_in_provider !== 'google.com') return [401, { error: 'Use o botão "Entrar com Google".' }];
+  if (!claims.email || claims.email_verified !== true) return [403, { error: 'O e-mail dessa conta Google não está verificado.' }];
+
+  const access = await getAccessToken(env);
+  const auth = { Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' };
+
+  // E-mails podem ter sido cadastrados com maiúsculas: procura o original e o minúsculo
+  const email = String(claims.email);
+  const candidates = [...new Set([email, email.toLowerCase()])];
+  const queryRes = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents:runQuery`,
+    {
+      method: 'POST',
+      headers: auth,
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'users' }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'email' },
+              op: 'IN',
+              value: { arrayValue: { values: candidates.map(stringValue => ({ stringValue })) } }
+            }
+          },
+          limit: 2
+        }
+      })
+    });
+  if (!queryRes.ok) throw new Error(`Firestore query ${queryRes.status}`);
+  const docs = (await queryRes.json()).filter(r => r.document).map(r => r.document);
+  if (docs.length === 0) {
+    return [404, { error: `Nenhum usuário do WolfSource usa o e-mail ${email.toLowerCase()}. Peça ao administrador para cadastrar esse e-mail no seu usuário.` }];
+  }
+  if (docs.length > 1) return [409, { error: 'Mais de um usuário usa esse e-mail. Peça ao administrador para corrigir o cadastro.' }];
+
+  const fields = docs[0].fields || {};
+  const userId = fields.id?.stringValue || docs[0].name.split('/').pop();
+  const familyId = fields.familyId?.stringValue;
+  if (!familyId) return [403, { error: 'Usuário sem família vinculada.' }];
+  const role = fields.role?.stringValue || 'user';
+
+  return [200, { token: await issueSessionToken(env, auth, userId, familyId, role), userId }];
+}
+
+// Garante o usuário no Firebase Auth, grava as claims persistentes (Firestore Rules usam familyId/role)
+// e devolve o custom token da sessão.
+async function issueSessionToken(env, auth, userId, familyId, role) {
+  const base = `https://identitytoolkit.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/accounts`;
   const created = await fetch(base, { method: 'POST', headers: auth, body: JSON.stringify({ localId: userId }) });
   if (!created.ok) {
     const err = await created.json().catch(() => ({}));
@@ -75,7 +139,7 @@ async function authToken(request, env) {
   });
   if (!updated.ok) throw new Error(`Auth update ${updated.status}`);
 
-  return [200, { token: await createCustomToken(env, userId, { familyId, role }) }];
+  return createCustomToken(env, userId, { familyId, role });
 }
 
 async function fcmSend(request, env) {
@@ -117,6 +181,7 @@ async function fcmSend(request, env) {
 
 const ROUTES = {
   'POST /auth/token': authToken,
+  'POST /auth/google': authGoogle,
   'POST /fcm/send': fcmSend,
   'GET /health': async () => [200, { status: 'healthy' }]
 };

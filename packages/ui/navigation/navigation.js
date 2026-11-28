@@ -5,7 +5,7 @@
 import { state, isSuperAdmin, getFamilyId } from '../../core/state/store.js';
 import { showAlert, toDateStr } from '../../utils/helpers.js';
 import { firebaseReady, saveDataToStorage, loadDataFromStorage, exportData, importData, syncData, clearCache, syncAllToFirebase, allowRefresh, refreshIfStale } from '../../services/firebase/firebase.service.js';
-import { uploadAvatar, loginUser, registerUser, changeUserPassword, savePhoneNumber, saveRecado, loadUsersList, saveUserEdit, loadFamiliesListUI, createFamily, populateFamilySelects, loadFamily, applyUserToUI, logout, signInWithFirebase } from '../../services/auth/auth.service.js';
+import { uploadAvatar, loginUser, loginWithGoogle, isGoogleLoginAvailable, registerUser, changeUserPassword, savePhoneNumber, saveRecado, loadUsersList, saveUserEdit, loadFamiliesListUI, createFamily, populateFamilySelects, loadFamily, applyUserToUI, logout, signInWithFirebase } from '../../services/auth/auth.service.js';
 import { addTransaction, updateTransactionHistory } from '../../../apps/web/src/features/transactions/transactions.service.js';
 import { addDebt, resetDebtModal, setupDebtTypeListeners, setupDebtFilterListeners, updateDebtsList } from '../../../apps/web/src/features/debts/debts.js';
 import { addSalary, setupDeductionListeners, updateSalaryDisplay, updateSalaryHistory } from '../../../apps/web/src/features/salaries/salaries.js';
@@ -15,6 +15,36 @@ import { openShoppingPanel, setupShoppingListeners } from '../../../apps/web/src
 import { getNotifSettings, saveNotifSettings, enableNotifications, disableNotifications, checkAndNotify, isNotifSupported } from '../../services/notifications/notification.service.js';
 import { openChat, initChat, cleanupChat } from '../../../apps/web/src/features/chat/chat.js';
 import { APK_URL } from '../../services/firebase/firebase.config.js';
+
+// ===== ENTRAR NO APP (login por senha ou Google) =====
+// Mostra o dashboard primeiro (mesmo padrão do checkLoginStatus) e carrega o resto em seguida;
+// erros de sincronização não bloqueiam o dashboard.
+async function _enterApp(user, { firebaseSignedIn }) {
+  state.isLoggedIn = true;
+  state.user = user.login;
+  state.currentUser = user;
+  localStorage.setItem('user', JSON.stringify(user));
+  localStorage.setItem('loginTime', new Date().toISOString());
+
+  document.getElementById('loginContainer').classList.remove('active');
+  document.getElementById('appContainer').classList.add('active');
+  applyUserToUI();
+
+  if (!firebaseSignedIn) await signInWithFirebase(user.id, user.familyId).catch(() => {});
+
+  try {
+    await loadFamily();
+  } catch (famErr) {
+    console.warn('⚠️ Erro ao carregar família (não bloqueia login):', famErr);
+  }
+
+  await loadDataFromStorage();
+
+  applyUserToUI();
+  updateDashboard();
+
+  allowRefresh(true); // Reabilita refresh após login completo
+}
 
 // ===== INSTALAR APP =====
 function _setupInstallBtn() {
@@ -361,34 +391,8 @@ export function setupEventListeners() {
       const user = await loginUser(login, password);
       if (user) {
         errorDiv.classList.remove('show');
-        state.isLoggedIn = true;
-        state.user = user.login;
-        state.currentUser = user;
-        localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('loginTime', new Date().toISOString());
-        
-        // Mostra o dashboard PRIMEIRO (mesmo padrão do checkLoginStatus)
-        document.getElementById('loginContainer').classList.remove('active');
-        document.getElementById('appContainer').classList.add('active');
-        applyUserToUI();
         this.reset();
-        
-        // Firebase Auth + carrega dados em background — erros NÃO bloqueiam o dashboard
-        await signInWithFirebase(user.id, user.familyId).catch(() => {});
-
-        try {
-          await loadFamily();
-        } catch (famErr) {
-          console.warn('⚠️ Erro ao carregar família (não bloqueia login):', famErr);
-        }
-        
-        await loadDataFromStorage();
-        
-        applyUserToUI();
-        updateDashboard();
-        
-        allowRefresh(true); // Reabilita refresh após login completo
-        
+        await _enterApp(user, { firebaseSignedIn: false });
       } else {
         errorDiv.textContent = 'Usuário ou senha incorretos!';
         errorDiv.classList.add('show');
@@ -404,6 +408,40 @@ export function setupEventListeners() {
       submitBtn.innerHTML = '<span>Entrar</span><i class="fa-solid fa-arrow-right"></i>';
     }
   });
+
+  // Entrar com Google (some no APK, onde o popup não funciona)
+  const googleBtn = document.getElementById('googleLoginBtn');
+  if (googleBtn) {
+    if (!isGoogleLoginAvailable()) {
+      document.getElementById('googleLoginWrap')?.setAttribute('hidden', '');
+    } else {
+      googleBtn.addEventListener('click', async () => {
+        const errorDiv = document.getElementById('loginError');
+        const original = googleBtn.innerHTML;
+        allowRefresh(false);
+        googleBtn.disabled = true;
+        googleBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Entrando...';
+        errorDiv.classList.remove('show');
+        try {
+          const user = await loginWithGoogle();
+          if (user) {
+            document.getElementById('loginForm')?.reset();
+            await _enterApp(user, { firebaseSignedIn: true });
+          } else {
+            allowRefresh(true); // popup fechado
+          }
+        } catch (err) {
+          console.error('❌ Erro no login com Google:', err);
+          errorDiv.textContent = err.message || 'Erro ao entrar com o Google.';
+          errorDiv.classList.add('show');
+          allowRefresh(true);
+        } finally {
+          googleBtn.disabled = false;
+          googleBtn.innerHTML = original;
+        }
+      });
+    }
+  }
 
   // Logout — limpa chat antes de sair
   document.getElementById('logoutBtn')?.addEventListener('click', () => {
