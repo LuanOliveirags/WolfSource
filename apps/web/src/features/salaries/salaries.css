@@ -17,12 +17,15 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 18px;
-  border-radius: var(--r-lg);
-  background: var(--bg-card);
+  gap: 16px;
+  padding: 20px;
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(180px 120px at 100% 0%, color-mix(in srgb, var(--tone) 11%, transparent), transparent 70%),
+    var(--bg-card);
   border: 1px solid var(--border);
-  flex: 1 1 280px;
+  box-shadow: var(--shadow-xs), var(--card-sheen);
+  flex: 1 1 300px;
   min-width: 0;
 }
 .person-tone-0 { --tone: var(--c-navy); }
@@ -34,8 +37,8 @@
 
 .pic-header { display: flex; align-items: center; gap: 12px; }
 .pic-avatar {
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -47,24 +50,46 @@
   overflow: hidden;
   flex-shrink: 0;
 }
-.pic-name { font-family: var(--font-display); font-size: 1.05rem; font-weight: var(--fw-bold); letter-spacing: -0.02em; color: var(--text-primary); }
+.pic-name { font-family: var(--font-display); font-size: 1.12rem; font-weight: var(--fw-bold); letter-spacing: -0.02em; color: var(--text-primary); }
 
-.pic-salaries { display: flex; flex-direction: column; gap: 8px; }
+.pic-salaries {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
 .pic-salary-row {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border);
 }
-.pic-salary-label { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-secondary); }
-.pic-salary-label i { width: 14px; text-align: center; font-size: 0.75rem; color: var(--text-muted); }
-.pic-salary-val { font-family: var(--font-display); font-weight: var(--fw-bold); letter-spacing: -0.02em; color: var(--text-primary); white-space: nowrap; }
-.pic-salaries .pic-salary-row:first-child .pic-salary-val { font-size: 1.55rem; }
-.pic-salaries .pic-salary-row:first-child { flex-direction: column; align-items: flex-start; gap: 2px; padding-bottom: 12px; border-bottom: 1px dashed var(--border); }
-.pic-vr-row .pic-salary-val { font-size: 0.98rem; color: var(--income-dark); }
-.pic-va-row .pic-salary-val { font-size: 0.98rem; color: var(--c-sky); }
+.pic-salary-label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; font-weight: var(--fw-semi); color: var(--text-secondary); }
+.pic-salary-label i { width: 14px; text-align: center; font-size: 0.74rem; color: var(--text-muted); }
+.pic-salary-val { font-family: var(--font-display); font-weight: var(--fw-bold); letter-spacing: -0.025em; color: var(--text-primary); white-space: nowrap; }
+.pic-salaries .pic-salary-row:first-child {
+  grid-column: 1 / -1;
+  padding: 16px 18px;
+  border-radius: var(--r-lg);
+  background: var(--grad-ink);
+  border-color: var(--ink-line);
+  box-shadow: var(--shadow-sm);
+}
+.pic-salaries .pic-salary-row:first-child .pic-salary-label { color: var(--gold-bright); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.68rem; }
+.pic-salaries .pic-salary-row:first-child .pic-salary-label i { color: var(--gold-bright); }
+.pic-salaries .pic-salary-row:first-child .pic-salary-val { font-size: clamp(1.7rem, 5vw, 2.15rem); color: var(--ink-text); }
+.pic-vr-row { background: color-mix(in srgb, var(--income) 7%, var(--bg-card-alt)); border-color: color-mix(in srgb, var(--income) 20%, var(--border)); }
+.pic-vr-row .pic-salary-label i, .pic-vr-row .pic-salary-val { color: var(--income-dark); }
+.pic-vr-row .pic-salary-val { font-size: 1.08rem; }
+.pic-va-row { background: color-mix(in srgb, var(--c-sky) 7%, var(--bg-card-alt)); border-color: color-mix(in srgb, var(--c-sky) 20%, var(--border)); }
+.pic-va-row .pic-salary-label i, .pic-va-row .pic-salary-val { color: var(--c-sky); }
+.pic-va-row .pic-salary-val { font-size: 1.08rem; }
 .person-income-card .salary-annual,
-.salary-annual { font-size: 0.75rem; color: var(--text-muted); }
+.salary-annual { font-size: 0.76rem; font-weight: var(--fw-medium); color: var(--text-muted); }
 
 /* Hero: renda combinada da família */
 .combined-card {
@@ -292,6 +317,13 @@
 }
 @media (min-width: 1024px) {
   .person-cards-grid { gap: 16px; }
+  .person-cards-grid > .person-income-card:only-child .pic-salaries {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .person-cards-grid > .person-income-card:only-child .pic-salaries .pic-salary-row:first-child {
+    grid-column: span 1;
+  }
   .combined-card { padding: 28px 32px; flex-direction: row; align-items: center; justify-content: space-between; gap: 32px; }
   .combined-card .pic-header { flex-direction: column; align-items: flex-start; gap: 14px; }
   .combined-card .pic-combined-grid { flex: 1; max-width: 720px; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }

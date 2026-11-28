@@ -443,8 +443,20 @@ export function updateDashboard() {
     updateRecentTransactions(generalAllMonthTx);
   }
 
-  // Medidor do hero + mês por extenso no cabeçalho
+  // Medidor do hero + pulso inteligente + mês por extenso no cabeçalho
   updateBalanceMeter(activeIncomeForMeter, activeExpenseForMeter, dashboardMode);
+  const activeInfoForPulse = dashboardMode === 'vr'
+    ? vrBalanceInfo
+    : dashboardMode === 'va'
+      ? vaBalanceInfo
+      : generalBalanceInfo;
+  const activeTxForPulse = dashboardMode === 'vr'
+    ? vrTransactions
+    : dashboardMode === 'va'
+      ? vaTransactions
+      : generalTransactions;
+  updatePulseStrip(activeInfoForPulse, activeTxForPulse, monthDebts, activeIncomeForMeter);
+
   const monthLabel = document.getElementById('dashMonthLabel');
   if (monthLabel) monthLabel.textContent = new Date(year, month, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
@@ -487,6 +499,80 @@ function updateCarryInfo(balanceInfo) {
     : balanceInfo.carryOver;
   carryEl.innerHTML = `${prevLabel}: <strong>${formatCurrency(prevVal)}</strong> · No mês: <strong>${formatSignedCurrency(balanceInfo.monthNet)}</strong>`;
   carryEl.hidden = false;
+}
+
+function updatePulseStrip(balanceInfo, monthTxs, activeDebts, monthIncome) {
+  const flowVal = document.getElementById('pulseFlowVal');
+  const flowDot = document.getElementById('pulseFlowDot');
+  if (flowVal && balanceInfo) {
+    const net = round2(balanceInfo.monthNet || 0);
+    flowVal.textContent = formatSignedCurrency(net);
+    if (flowDot) {
+      flowDot.className = 'dpc-dot ' + (net > 0.004 ? 'is-pos' : net < -0.004 ? 'is-neg' : 'is-neutral');
+    }
+  }
+
+  const topCatVal = document.getElementById('pulseTopCatVal');
+  const topCatIcon = document.getElementById('pulseTopCatIcon');
+  if (topCatVal) {
+    const catTotals = {};
+    let totalOut = 0;
+    (monthTxs || []).filter(t => t.type === 'saida').forEach(t => {
+      catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;
+      totalOut += t.amount;
+    });
+    const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+    if (sortedCats.length > 0 && totalOut > 0) {
+      const [topKey, topAmt] = sortedCats[0];
+      const meta = CATEGORY_MAP[topKey] || { label: topKey, icon: '📁' };
+      const pct = Math.round((topAmt / totalOut) * 100);
+      topCatVal.textContent = `${meta.label} · ${pct}%`;
+      if (topCatIcon) topCatIcon.textContent = meta.icon;
+    } else {
+      topCatVal.textContent = monthIncome > 0 ? 'Nenhum gasto' : 'Sem movimentos';
+      if (topCatIcon) topCatIcon.innerHTML = '<i class="fa-solid fa-sparkles"></i>';
+    }
+  }
+
+  const nextDebtLabel = document.getElementById('pulseNextDebtLabel');
+  const nextDebtVal = document.getElementById('pulseNextDebtVal');
+  const nextDebtChip = document.getElementById('pulseNextDebtChip');
+  if (nextDebtVal) {
+    const withDue = (activeDebts || []).filter(d => d.dueDate).slice().sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    if (withDue.length > 0) {
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const overdue = withDue.find(d => d.dueDate < todayIso);
+      const target = overdue || withDue.find(d => d.dueDate >= todayIso) || withDue[0];
+      const [, mm, dd] = target.dueDate.split('-');
+      const amt = target.installmentValue || target.amount || 0;
+      if (nextDebtLabel) nextDebtLabel.textContent = overdue ? 'Dívida em atraso' : `Vence ${dd}/${mm}`;
+      nextDebtVal.textContent = `${target.creditor} · ${formatCurrency(amt)}`;
+      nextDebtChip?.classList.toggle('is-alert', Boolean(overdue));
+    } else {
+      if (nextDebtLabel) nextDebtLabel.textContent = 'Compromissos';
+      nextDebtVal.textContent = 'Tudo em dia';
+      nextDebtChip?.classList.remove('is-alert');
+    }
+  }
+}
+
+function toggleChartEmpty(canvasEl, isEmpty, message = 'Sem dados neste período') {
+  const wrap = canvasEl?.parentElement;
+  if (!wrap) return;
+  let emptyEl = wrap.querySelector('.chart-empty-placeholder');
+  if (isEmpty) {
+    canvasEl.style.display = 'none';
+    if (!emptyEl) {
+      emptyEl = document.createElement('div');
+      emptyEl.className = 'chart-empty-placeholder';
+      wrap.appendChild(emptyEl);
+    }
+    emptyEl.innerHTML = `<i class="fa-regular fa-chart-bar"></i><span>${message}</span>`;
+    emptyEl.hidden = false;
+  } else {
+    canvasEl.style.display = '';
+    if (emptyEl) emptyEl.hidden = true;
+  }
 }
 
 // ===== MEDIDOR DO HERO =====
@@ -631,7 +717,11 @@ function createCategoryChart(transactions, theme) {
   if (!ctx) return null;
   const categories = {};
   transactions.filter(t => t.type === 'saida').forEach(t => { categories[t.category] = (categories[t.category] || 0) + t.amount; });
-  if (Object.keys(categories).length === 0) return null;
+  if (Object.keys(categories).length === 0) {
+    toggleChartEmpty(ctx, true, 'Nenhuma despesa registrada neste mês');
+    return null;
+  }
+  toggleChartEmpty(ctx, false);
   let entries = Object.entries(categories).sort((a, b) => b[1] - a[1]);
   if (entries.length > 7) {
     const rest = entries.slice(6).reduce((sum, [, v]) => sum + v, 0);
@@ -663,7 +753,11 @@ function createResponsibleChart(transactions, theme) {
     if (!responsible[t.responsible]) responsible[t.responsible] = { entrada: 0, saida: 0 };
     responsible[t.responsible][t.type] += t.amount;
   });
-  if (Object.keys(responsible).length === 0) return null;
+  if (Object.keys(responsible).length === 0) {
+    toggleChartEmpty(ctx, true, 'Sem movimentações por responsável');
+    return null;
+  }
+  toggleChartEmpty(ctx, false);
   return new Chart(ctx, {
     type: 'bar',
     data: {
@@ -706,7 +800,11 @@ function createDebtTypeChart(debts, theme) {
     totals[key] = (totals[key] || 0) + val;
   });
   const keys = Object.keys(totals);
-  if (keys.length === 0) return null;
+  if (keys.length === 0) {
+    toggleChartEmpty(ctx, true, 'Nenhuma dívida ativa cadastrada');
+    return null;
+  }
+  toggleChartEmpty(ctx, false);
   return new Chart(ctx, {
     type: 'doughnut',
     data: {

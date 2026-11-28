@@ -85,7 +85,7 @@
 #btnModeVR.active i { color: var(--income-dark); }
 #btnModeVA.active i { color: var(--c-sky); }
 
-/* ═══════════════ HERO — SALDO ═══════════════ */
+/* ═══════════════ HERO — SALDO ("VAULT CARD") ═══════════════ */
 .balance-card {
   position: relative;
   isolation: isolate;
@@ -93,33 +93,38 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 20px;
-  padding: 22px 20px 20px;
-  margin-bottom: 28px;
+  padding: 24px 20px 22px;
+  margin-bottom: 16px;
   border-radius: var(--r-xl);
-  background: var(--grad-ink);
+  background:
+    radial-gradient(120% 95% at 100% 0%, rgba(var(--gold-rgb), 0.22) 0%, transparent 50%),
+    radial-gradient(90% 120% at 0% 100%, rgba(56, 152, 236, 0.14) 0%, transparent 55%),
+    linear-gradient(145deg, #16243D 0%, #0B1220 58%, #080E19 100%);
   color: var(--ink-text);
-  box-shadow: var(--shadow-ink);
-  border: 1px solid var(--ink-line);
+  box-shadow:
+    var(--shadow-ink),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.10);
 }
-/* Filete dourado + marca d'água do escudo */
+/* Filete metálico dourado + marca d'água do escudo */
 .balance-card::before {
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold-bright) 50%, var(--gold) 70%, transparent);
-  opacity: 0.8;
+  background: linear-gradient(90deg, transparent 5%, var(--gold) 30%, var(--gold-bright) 50%, var(--gold) 70%, transparent 95%);
+  opacity: 0.92;
 }
 .balance-card::after {
   content: '';
   position: absolute;
-  right: -60px;
-  top: -40px;
+  right: -54px;
+  top: -36px;
   width: 280px;
   height: 280px;
   background: url('../../../../assets/images/lopes-logo-opt.png') center / contain no-repeat;
-  opacity: 0.06;
-  filter: grayscale(1) brightness(2);
+  opacity: 0.065;
+  filter: grayscale(1) brightness(2.1);
   z-index: -1;
   pointer-events: none;
 }
@@ -222,15 +227,19 @@
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px 10px;
-  padding: 12px 14px;
+  padding: 13px 14px;
   border-radius: var(--r-md);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--ink-line);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   cursor: pointer;
   min-width: 0;
-  transition: background var(--ease), border-color var(--ease);
+  transition: transform var(--ease), background var(--ease), border-color var(--ease);
 }
-.ie-card:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.14); }
+.ie-card:hover { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.18); transform: translateY(-1px); }
+.ie-card:active { transform: scale(0.98); }
 .ie-circle {
   width: 26px;
   height: 26px;
@@ -289,6 +298,139 @@
 .balance-card.va-mode::before { background: linear-gradient(90deg, transparent, #38BDF8 40%, #7DD3FC 50%, #38BDF8 60%, transparent); }
 .balance-card.va-mode .balance-meter-fill { background: linear-gradient(90deg, #0284C7, #7DD3FC); }
 
+/* ═══════════════ ATALHOS RÁPIDOS (1 TOQUE FINTECH) ═══════════════ */
+.dash-quick-rail {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  margin: 0 calc(-1 * var(--page-pad)) 14px;
+  padding: 2px var(--page-pad) 6px;
+}
+.dash-quick-rail::-webkit-scrollbar { display: none; }
+
+.dash-quick-pill {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 176px;
+  padding: 11px 14px;
+  border-radius: var(--r-lg);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs), var(--card-sheen);
+  text-align: left;
+  transition: transform var(--ease), border-color var(--ease), box-shadow var(--ease), background var(--ease);
+}
+.dash-quick-pill:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.dash-quick-pill:active { transform: scale(0.97); }
+.dash-quick-pill.is-gold {
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--border));
+  background:
+    radial-gradient(120px 80px at 0% 0%, rgba(var(--gold-rgb), 0.14), transparent 75%),
+    var(--bg-card);
+}
+.dqp-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.92rem;
+  flex-shrink: 0;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 11%, var(--bg-card));
+}
+[data-theme="dark"] .dqp-icon { color: var(--gold-bright); background: rgba(var(--gold-rgb), 0.14); }
+.dash-quick-pill.is-gold .dqp-icon {
+  background: var(--grad-gold);
+  color: #1B1406;
+  box-shadow: 0 6px 16px -6px rgba(var(--gold-rgb), 0.65);
+}
+.dqp-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.dqp-text strong {
+  font-size: 0.84rem;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.dqp-text small {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ═══════════════ PULSO FINANCEIRO INTELIGENTE ═══════════════ */
+.dash-pulse-strip {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 26px;
+}
+.dash-pulse-chip {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 14px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--bg-card) 82%, var(--bg-card-alt));
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs), var(--card-sheen);
+  cursor: pointer;
+  min-width: 0;
+  transition: transform var(--ease), border-color var(--ease), box-shadow var(--ease);
+}
+.dash-pulse-chip:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.dash-pulse-chip:active { transform: scale(0.98); }
+.dash-pulse-chip.is-alert {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger) 6%, var(--bg-card));
+}
+.dpc-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--c-slate);
+}
+.dpc-dot.is-pos { background: var(--income); box-shadow: 0 0 0 4px var(--income-bg); }
+.dpc-dot.is-neg { background: var(--expense); box-shadow: 0 0 0 4px var(--expense-bg); }
+.dpc-dot.is-neutral { background: var(--gold); box-shadow: 0 0 0 4px rgba(var(--gold-rgb), 0.16); }
+.dpc-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--bg-sunken);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.dash-pulse-chip.is-alert .dpc-icon { background: var(--danger-bg); color: var(--danger); }
+.dpc-body { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex: 1; min-width: 0; }
+.dpc-label { font-size: 0.74rem; font-weight: var(--fw-medium); color: var(--text-muted); white-space: nowrap; }
+.dpc-value {
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ═══════════════ RESUMO DO MÊS ═══════════════ */
 .dash-summary-head { margin-bottom: 12px; }
 .dash-summary-toggle {
@@ -329,15 +471,23 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 14px;
+  padding: 15px;
   border-radius: var(--r-lg);
-  background: var(--bg-card);
+  background:
+    radial-gradient(130px 90px at 100% 0%, color-mix(in srgb, var(--tone) 11%, transparent), transparent 72%),
+    var(--bg-card);
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs), var(--card-sheen);
   cursor: pointer;
   min-width: 0;
   transition: border-color var(--ease), box-shadow var(--ease), transform var(--ease);
 }
-.kpi-mini-card:hover { border-color: color-mix(in srgb, var(--tone) 45%, var(--border)); box-shadow: var(--shadow-md); }
+.kpi-mini-card:hover {
+  border-color: color-mix(in srgb, var(--tone) 48%, var(--border));
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.kpi-mini-card:active { transform: scale(0.98); }
 .kpi-mini-icon {
   width: 28px;
   height: 28px;
@@ -461,10 +611,11 @@
 .chart-card {
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: 18px;
   border-radius: var(--r-lg);
   background: var(--bg-card);
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs), var(--card-sheen);
   min-width: 0;
 }
 .chart-card-header {
@@ -474,10 +625,38 @@
   gap: 8px;
   margin-bottom: 12px;
 }
-.chart-card-header h3 { font-size: 0.9rem; font-weight: var(--fw-bold); letter-spacing: -0.01em; }
-.chart-icon { font-size: 0.8rem; color: var(--text-muted); }
+.chart-card-header h3 { font-size: 0.92rem; font-weight: var(--fw-bold); letter-spacing: -0.01em; }
+.chart-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--bg-card-alt);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
 .chart-canvas-wrap { position: relative; height: 220px; }
 .chart-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
+.chart-empty-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--r-md);
+  background: var(--bg-card-alt);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 16px;
+}
+.chart-empty-placeholder[hidden] { display: none !important; }
+.chart-empty-placeholder i { font-size: 1.35rem; opacity: 0.55; }
 
 /* ═══════════════ RECENTES ═══════════════ */
 .list-section { margin-bottom: 28px; }
@@ -515,6 +694,7 @@
 .values-hidden .vr-kpi-item-val,
 .values-hidden .balance-meter-caption,
 .values-hidden .trans-amount,
+.values-hidden .dpc-value,
 .values-hidden #vrBalance,
 .values-hidden #vrIncome,
 .values-hidden #vrExpense,
@@ -528,6 +708,8 @@
 
 /* ═══════════════ BREAKPOINTS ═══════════════ */
 @media (min-width: 640px) {
+  .dash-pulse-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .dpc-body { flex-direction: column; align-items: flex-start; gap: 1px; }
   .kpi-mini-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .kpi-mini-card.tone-sky { grid-column: span 2; }
   .charts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -541,6 +723,18 @@
   .months-scroller { overflow: visible; flex-wrap: nowrap; }
   .month-btn { padding: 0 12px; }
   .dash-mode-toggle { width: 300px; }
+
+  .dash-quick-rail {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 0 16px;
+    padding: 0;
+    overflow: visible;
+  }
+  .dash-quick-pill { min-width: 0; padding: 13px 15px; }
+  .dash-pulse-strip { gap: 12px; margin-bottom: 30px; }
+  .dash-pulse-chip { padding: 13px 16px; }
 
   .balance-card {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);

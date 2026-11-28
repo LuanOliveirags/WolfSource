@@ -44,6 +44,22 @@ textarea {
 }
 textarea { min-height: 88px; resize: vertical; line-height: 1.5; }
 
+/* iOS / Android: evita auto-zoom ao focar em campos no Safari / Chrome mobile */
+@media (pointer: coarse) {
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="month"],
+  input[type="password"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* iOS: data/mês vazios encolhem e o valor vem centralizado */
 input[type="date"],
 input[type="month"] { min-height: calc(1.35em + 26px); }

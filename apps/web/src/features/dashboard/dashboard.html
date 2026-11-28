@@ -86,6 +86,70 @@
         </div>
     </div>
 
+    <!-- Atalhos rápidos estilo fintech (1 toque no Android / iPhone / Desktop) -->
+    <div class="dash-quick-rail" aria-label="Atalhos rápidos">
+        <button type="button" class="dash-quick-pill is-gold" onclick="openImportModal()">
+            <span class="dqp-icon"><i class="fa-solid fa-file-import"></i></span>
+            <span class="dqp-text">
+                <strong>Importar extrato</strong>
+                <small>PDF, OFX ou foto</small>
+            </span>
+        </button>
+        <button type="button" class="dash-quick-pill" onclick="triggerQuickAction('transaction')">
+            <span class="dqp-icon"><i class="fa-solid fa-bolt"></i></span>
+            <span class="dqp-text">
+                <strong>Nova transação</strong>
+                <small>Pix, cartão, VR/VA</small>
+            </span>
+        </button>
+        <button type="button" class="dash-quick-pill" onclick="triggerQuickAction('salary')">
+            <span class="dqp-icon"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+            <span class="dqp-text">
+                <strong>Ler holerite</strong>
+                <small>Salário e benefícios</small>
+            </span>
+        </button>
+        <button type="button" class="dash-quick-pill" onclick="triggerQuickAction('debt')">
+            <span class="dqp-icon"><i class="fa-solid fa-credit-card"></i></span>
+            <span class="dqp-text">
+                <strong>Nova dívida</strong>
+                <small>Contas e parcelas</small>
+            </span>
+        </button>
+        <button type="button" class="dash-quick-pill" onclick="switchTab('shopping')">
+            <span class="dqp-icon"><i class="fa-solid fa-cart-shopping"></i></span>
+            <span class="dqp-text">
+                <strong>Mercado</strong>
+                <small>Listas principais</small>
+            </span>
+        </button>
+    </div>
+
+    <!-- Pulso financeiro inteligente do mês -->
+    <div class="dash-pulse-strip" id="dashPulseStrip">
+        <div class="dash-pulse-chip" id="pulseFlowChip" onclick="switchTab('transactions', { showAll: true })" role="button" tabindex="0">
+            <span class="dpc-dot" id="pulseFlowDot"></span>
+            <div class="dpc-body">
+                <span class="dpc-label">Resultado no mês</span>
+                <strong class="dpc-value num" id="pulseFlowVal">R$ 0,00</strong>
+            </div>
+        </div>
+        <div class="dash-pulse-chip" id="pulseTopCatChip" onclick="switchTab('transactions', { showAll: true })" role="button" tabindex="0">
+            <span class="dpc-icon" id="pulseTopCatIcon"><i class="fa-solid fa-chart-pie"></i></span>
+            <div class="dpc-body">
+                <span class="dpc-label">Maior categoria</span>
+                <strong class="dpc-value" id="pulseTopCatVal">Sem gastos</strong>
+            </div>
+        </div>
+        <div class="dash-pulse-chip" id="pulseNextDebtChip" onclick="switchTab('debts')" role="button" tabindex="0">
+            <span class="dpc-icon" id="pulseNextDebtIcon"><i class="fa-solid fa-calendar-check"></i></span>
+            <div class="dpc-body">
+                <span class="dpc-label" id="pulseNextDebtLabel">Compromissos</span>
+                <strong class="dpc-value" id="pulseNextDebtVal">Tudo em dia</strong>
+            </div>
+        </div>
+    </div>
+
     <!-- Resumo do mês -->
     <div class="section-head dash-summary-head">
         <h3 class="section-title">Resumo do mês</h3>

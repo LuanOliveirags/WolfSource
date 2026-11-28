@@ -8,9 +8,84 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs), var(--card-sheen);
   overflow: hidden;
 }
 .transactions-list > .empty-state { padding: 36px 20px; }
+
+/* Barra de busca instantânea */
+.tx-search-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.tx-search-input-wrap {
+  position: relative;
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.tx-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+.tx-search-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 38px 0 38px;
+  border-radius: var(--r-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs), var(--card-sheen);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+.tx-search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.12);
+}
+.tx-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.tx-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+.tx-search-clear[hidden] { display: none !important; }
+.tx-search-clear:hover { color: var(--text-primary); }
+.tx-search-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: var(--r-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+.tx-search-summary:empty { display: none; }
+.tx-search-summary .is-pos { color: var(--income-dark); }
+.tx-search-summary .is-neg { color: var(--expense); }
+.tx-sum-dot { color: var(--text-muted); }
 
 .transaction-item {
   display: grid;
@@ -219,6 +294,7 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs), var(--card-sheen);
   overflow: hidden;
 }
 .trans-day-header {

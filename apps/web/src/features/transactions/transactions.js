@@ -128,24 +128,51 @@ export function updateRecentTransactions(transactions) {
 const bulk = { active: false, ids: new Set(), from: '', to: '' };
 let visibleTransactions = [];
 
+function normSearch(str) {
+  return String(str || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().trim();
+}
+
+function matchesSearchQuery(t, q) {
+  if (!q) return true;
+  const catLabel = CATEGORY_MAP[t.category]?.label || t.category || '';
+  const amtStr = Number(t.amount || 0).toFixed(2).replace('.', ',');
+  const hay = normSearch(`${t.description || ''} ${catLabel} ${t.responsible || ''} ${t.paymentMethod || ''} ${amtStr} ${t.date || ''}`);
+  return hay.includes(q);
+}
+
 function getVisibleTransactions() {
   const typeFilter = document.getElementById('historyFilter')?.value || 'all';
+  const rawQuery = document.getElementById('txSearchInput')?.value || '';
+  const q = normSearch(rawQuery);
+
+  let base;
   if (bulk.active && (bulk.from || bulk.to)) {
     const from = bulk.from || '0000-00-00';
     const to = bulk.to || '9999-99-99';
-    return filterTransactions(state.transactions, { typeFilter })
+    base = filterTransactions(state.transactions, { typeFilter })
       .filter(t => t.date >= from && t.date <= to);
+  } else {
+    // Se estiver pesquisando texto, busca em todo o histórico (a menos que haja mês específico)
+    base = filterTransactions(state.transactions, {
+      monthVal: document.getElementById('historyMonth')?.value,
+      selectedDay: q ? null : state.selectedDay,
+      typeFilter
+    });
   }
-  return filterTransactions(state.transactions, {
-    monthVal: document.getElementById('historyMonth')?.value,
-    selectedDay: state.selectedDay,
-    typeFilter
-  });
+  return q ? base.filter(t => matchesSearchQuery(t, q)) : base;
 }
 
 export function updateTransactionHistory() {
   const container = document.getElementById('transactionHistoryList');
   if (!container) return;
+
+  const searchInput = document.getElementById('txSearchInput');
+  const searchClear = document.getElementById('txSearchClear');
+  const searchSummary = document.getElementById('txSearchSummary');
+  const hasQuery = Boolean(searchInput?.value.trim());
+  if (searchClear) searchClear.hidden = !hasQuery;
 
   const filtered = getVisibleTransactions();
   visibleTransactions = filtered;
@@ -153,9 +180,20 @@ export function updateTransactionHistory() {
   const visibleIds = new Set(filtered.map(t => t.id));
   bulk.ids.forEach(id => { if (!visibleIds.has(id)) bulk.ids.delete(id); });
 
+  if (searchSummary) {
+    if (filtered.length === 0) {
+      searchSummary.textContent = hasQuery ? '0 resultados' : '';
+    } else {
+      const net = filtered.reduce((s, t) => s + (t.type === 'entrada' ? t.amount : -t.amount), 0);
+      const sign = net > 0.004 ? '+' : net < -0.004 ? '−' : '';
+      searchSummary.innerHTML = `<span>${filtered.length} ${filtered.length === 1 ? 'lançamento' : 'lançamentos'}</span><span class="tx-sum-dot">·</span><strong class="${net >= 0 ? 'is-pos' : 'is-neg'}">${sign}${formatCurrency(Math.abs(net))}</strong>`;
+    }
+  }
+
   if (filtered.length === 0) {
-    const msg = bulk.active && (bulk.from || bulk.to) ? 'Nenhuma transação neste período'
-      : state.selectedDay ? 'Nenhuma transação neste dia' : 'Nenhuma transação encontrada';
+    const msg = hasQuery ? 'Nenhum lançamento corresponde à sua busca'
+      : (bulk.active && (bulk.from || bulk.to)) ? 'Nenhuma transação neste período'
+        : state.selectedDay ? 'Nenhuma transação neste dia' : 'Nenhuma transação encontrada';
     container.innerHTML = emptyState(msg);
     updateBulkBar();
     return;
@@ -274,6 +312,14 @@ async function deleteSelected() {
 }
 
 export function setupBulkSelect() {
+  const searchInput = $id('txSearchInput');
+  const searchClear = $id('txSearchClear');
+  searchInput?.addEventListener('input', () => updateTransactionHistory());
+  searchClear?.addEventListener('click', () => {
+    if (searchInput) { searchInput.value = ''; searchInput.focus(); }
+    updateTransactionHistory();
+  });
+
   const list = $id('transactionHistoryList');
   if (!list || !$id('txBulkBar')) return;
 

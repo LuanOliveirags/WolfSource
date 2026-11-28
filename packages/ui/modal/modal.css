@@ -7,30 +7,30 @@
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(8, 12, 20, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(6, 10, 18, 0.62);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
   z-index: var(--z-modal);
   justify-content: center;
   align-items: flex-end;
-  padding: 10px;
-  padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+  padding: 8px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
 }
 .modal.active { display: flex; animation: fadeIn 180ms ease; }
 
 .modal-content {
   position: relative;
   background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-2xl) var(--r-2xl) var(--r-lg) var(--r-lg);
-  padding: 22px 20px 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-2xl) var(--r-2xl) var(--r-xl) var(--r-xl);
+  padding: 24px 20px max(20px, env(safe-area-inset-bottom, 20px));
   width: 100%;
   max-width: 520px;
   max-height: 92vh;
   max-height: 92dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-xl), var(--card-sheen);
 }
 
 /* Celular: com um modal aberto, a barra inferior sai de cena para não cobrir

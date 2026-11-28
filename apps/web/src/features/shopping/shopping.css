@@ -944,10 +944,12 @@
   border-radius: var(--r-lg);
   padding: 16px;
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs), var(--card-sheen);
   cursor: pointer;
-  transition: border-color var(--ease), box-shadow var(--ease);
+  transition: transform var(--ease), border-color var(--ease), box-shadow var(--ease);
 }
-.shop-list-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+.shop-list-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.shop-list-card:active { transform: scale(0.985); }
 .shop-list-card .shop-card-name { font-size: 1rem; letter-spacing: -0.01em; }
 .shop-list-card.is-principal {
   border-color: color-mix(in srgb, var(--gold) 55%, var(--border));
@@ -1202,10 +1204,12 @@
   align-items: center;
   gap: 10px;
   padding: 6px 6px 6px 16px;
-  background: var(--bg-card);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-lg);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg), var(--card-sheen);
   transition: border-color var(--ease), box-shadow var(--ease);
 }
 .shopping-add-bar-inner:focus-within { border-color: var(--primary); box-shadow: var(--shadow-lg), 0 0 0 4px rgba(var(--primary-rgb), 0.12); }

@@ -124,12 +124,15 @@ function toggleTheme() {
 }
 
 function applyTheme(theme) {
+  const metaTheme = document.getElementById('metaThemeColor') || document.querySelector('meta[name="theme-color"]');
   if (theme === 'dark') {
     document.documentElement.setAttribute('data-theme', 'dark');
     updateThemeIcon('light_mode');
+    if (metaTheme) metaTheme.setAttribute('content', '#070B13');
   } else {
     document.documentElement.removeAttribute('data-theme');
     updateThemeIcon('dark_mode');
+    if (metaTheme) metaTheme.setAttribute('content', '#F6F3EB');
   }
   localStorage.setItem('theme', theme);
 }
@@ -300,6 +303,15 @@ function handleQuickAction(action) {
   } else if (action === 'import') {
     window.openImportModal?.();
   }
+}
+window.triggerQuickAction = handleQuickAction;
+
+// ===== DATA NO HEADER =====
+function initHeaderDatePill() {
+  const pill = document.getElementById('headerDatePill');
+  if (!pill) return;
+  const formatted = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }).replace('.', '');
+  pill.textContent = formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
 // ===== SETUP EVENT LISTENERS =====
@@ -624,6 +636,7 @@ export function setupEventListeners() {
 
   // Initialize theme on load
   initializeTheme();
+  initHeaderDatePill();
 
   // Feature-specific setup
   setupDeductionListeners();

@@ -19,16 +19,21 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 14px;
+  padding: 15px;
   border-radius: var(--r-lg);
-  background: var(--bg-card);
+  background:
+    radial-gradient(120px 80px at 100% 0%, color-mix(in srgb, var(--tone) 10%, transparent), transparent 72%),
+    var(--bg-card);
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs), var(--card-sheen);
   cursor: pointer;
   min-width: 0;
-  transition: border-color var(--ease), box-shadow var(--ease), background var(--ease);
+  transition: transform var(--ease), border-color var(--ease), box-shadow var(--ease), background var(--ease);
 }
 .debt-overview-card:hover,
-.summary-mini:hover { border-color: color-mix(in srgb, var(--tone) 45%, var(--border)); box-shadow: var(--shadow-md); }
+.summary-mini:hover { border-color: color-mix(in srgb, var(--tone) 45%, var(--border)); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.debt-overview-card:active,
+.summary-mini:active { transform: scale(0.98); }
 .debt-overview-card.filter-active,
 .summary-mini.filter-active {
   border-color: var(--tone);

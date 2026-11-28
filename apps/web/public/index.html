@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#0E1624">
+    <meta name="theme-color" content="#F6F3EB" id="metaThemeColor">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WolfSource">
+    <meta name="format-detection" content="telephone=no">
     <meta name="description" content="App de Gestão financeira pessoal - WolfSource - Gestão Financeira">
     <meta name="keywords" content="Finanças, despesas, Gestão, PWA">
 
@@ -61,6 +66,7 @@
                     </div>
                 </div>
                 <div class="header-actions">
+                    <span class="header-date-pill" id="headerDatePill" aria-hidden="true"></span>
                     <button id="offlineBadge" class="header-badge-btn" style="display: none;" title="Offline">
                         <i class="fa-solid fa-wifi-slash"></i>
                     </button>
@@ -77,19 +83,25 @@
             </div>
         </header>
 
-        <!-- Bottom Navigation -->
-        <nav class="bottom-nav">
+        <!-- Bottom Navigation / Desktop Sidebar -->
+        <nav class="bottom-nav" aria-label="Navegação principal">
             <div class="sidebar-brand">
-                <img src="assets/images/lopes-logo-opt.png" alt="WolfSource" class="sidebar-brand-logo">
+                <div class="sidebar-brand-emblem">
+                    <img src="assets/images/lopes-logo-opt.png" alt="WolfSource" class="sidebar-brand-logo">
+                </div>
                 <div class="sidebar-brand-text">
                     <span class="sidebar-brand-name">WolfSource</span>
-                    <span class="sidebar-brand-tag">Gestão financeira</span>
+                    <span class="sidebar-brand-tag">Wealth &amp; Family</span>
                 </div>
             </div>
-            <p class="sidebar-section-label">Menu</p>
+            <p class="sidebar-section-label">Navegação</p>
             <button class="bottom-nav-item active" data-tab="dashboard">
                 <span class="nav-icon-wrap"><i class="fa-solid fa-chart-pie"></i></span>
                 <span class="nav-label">Status</span>
+            </button>
+            <button class="bottom-nav-item nav-desktop-only" data-tab="transactions">
+                <span class="nav-icon-wrap"><i class="fa-solid fa-arrow-right-arrow-left"></i></span>
+                <span class="nav-label">Transações</span>
             </button>
             <button class="bottom-nav-item" data-tab="debts">
                 <span class="nav-icon-wrap"><i class="fa-solid fa-credit-card"></i></span>
@@ -102,6 +114,22 @@
                     <span class="chat-fab-dot" id="chatFabDot" style="display:none" aria-label="Mensagens não lidas"></span>
                 </button>
                 <div id="quickActionsMenu" class="quick-actions-menu">
+                    <button class="quick-action-item" data-action="transaction">
+                        <div class="qa-icon-wrap"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+                        <span class="action-label">Transação</span>
+                    </button>
+                    <button class="quick-action-item" data-action="import">
+                        <div class="qa-icon-wrap"><i class="fa-solid fa-file-import"></i></div>
+                        <span class="action-label">Importar extrato</span>
+                    </button>
+                    <button class="quick-action-item" data-action="salary">
+                        <div class="qa-icon-wrap qa-salary-wrap"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                        <span class="action-label">Ler holerite</span>
+                    </button>
+                    <button class="quick-action-item" data-action="debt">
+                        <div class="qa-icon-wrap qa-debt-wrap"><i class="fa-solid fa-credit-card"></i></div>
+                        <span class="action-label">Nova dívida</span>
+                    </button>
                     <button class="quick-action-item" data-action="chat">
                         <div class="qa-icon-wrap qa-chat-wrap">
                             <i class="fa-solid fa-comments"></i>
@@ -113,17 +141,9 @@
                         <div class="qa-icon-wrap"><i class="fa-solid fa-broom"></i></div>
                         <span class="action-label">Tarefas</span>
                     </button>
-                    <button class="quick-action-item" data-action="transaction">
-                        <div class="qa-icon-wrap"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
-                        <span class="action-label">Transação</span>
-                    </button>
-                    <button class="quick-action-item" data-action="import">
-                        <div class="qa-icon-wrap"><i class="fa-solid fa-file-import"></i></div>
-                        <span class="action-label">Importar extrato</span>
-                    </button>
                     <button class="quick-action-item" data-action="settings">
                         <div class="qa-icon-wrap"><i class="fa-solid fa-gear"></i></div>
-                        <span class="action-label">Config</span>
+                        <span class="action-label">Ajustes</span>
                     </button>
                 </div>
             </div>
@@ -135,10 +155,16 @@
                 <span class="nav-icon-wrap"><i class="fa-solid fa-cart-shopping"></i></span>
                 <span class="nav-label">Compras</span>
             </button>
-            <button class="bottom-nav-item" data-tab="settings" id="settingsNavBtn" style="display:none">
-                <span class="nav-icon-wrap"><i class="fa-solid fa-gear"></i></span>
-                <span class="nav-label">Config</span>
+            <button class="bottom-nav-item nav-desktop-only" data-tab="settings" id="settingsNavBtn">
+                <span class="nav-icon-wrap"><i class="fa-solid fa-sliders"></i></span>
+                <span class="nav-label">Ajustes</span>
             </button>
+            <div class="sidebar-footer">
+                <div class="sidebar-sync-pill">
+                    <span class="sidebar-sync-dot"></span>
+                    <span>Nuvem sincronizada</span>
+                </div>
+            </div>
         </nav>
 
         <!-- Main Content -->
