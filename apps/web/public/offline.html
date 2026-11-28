@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!-- Página local do APK: aparece quando o app não consegue abrir o site (sem internet). -->
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>WolfSource — sem conexão</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; }
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            padding: 32px 28px;
+            background: #0E1624;
+            color: #E8ECF3;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            text-align: center;
+        }
+        img { width: 96px; height: 96px; object-fit: contain; }
+        h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+        p { max-width: 300px; font-size: 0.95rem; line-height: 1.5; color: #A9B4C6; }
+        button {
+            margin-top: 6px;
+            height: 50px;
+            padding: 0 32px;
+            border: 0;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #F0D58A, #C8952E);
+            color: #1B1406;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        button:active { transform: scale(0.98); }
+    </style>
+</head>
+<body>
+    <img src="assets/images/lopes-logo-opt.png" alt="WolfSource">
+    <h1>Sem conexão</h1>
+    <p>Não consegui abrir o WolfSource. Verifique a internet e tente de novo.</p>
+    <button type="button" onclick="location.href = 'https://financeiro-lopes.web.app'">Tentar de novo</button>
+</body>
+</html>

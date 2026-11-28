@@ -3,7 +3,9 @@
   "appName": "WolfSource",
   "webDir":  "../../www",
   "server": {
-    "androidScheme": "https"
+    "url": "https://financeiro-lopes.web.app",
+    "androidScheme": "https",
+    "errorPath": "offline.html"
   },
   "android": {
     "backgroundColor": "#0E1624",
