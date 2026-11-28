@@ -288,7 +288,7 @@
 .add-panel-body.open .form-container { padding: 4px 16px 16px; border-top: 1px solid var(--border); padding-top: 16px; }
 
 /* Histórico agrupado por dia: cada dia é um card */
-#transactionHistoryList { background: transparent; border: none; border-radius: 0; overflow: visible; display: grid; gap: 14px; }
+#transactionHistoryList { background: transparent; border: none; border-radius: 0; box-shadow: none; overflow: visible; display: grid; gap: 14px; }
 #transactionHistoryList > .empty-state { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); }
 .transaction-day-group {
   background: var(--bg-card);
@@ -385,6 +385,26 @@
 .trans-day-check { width: 16px; height: 16px; }
 
 /* ═══════════════ BREAKPOINTS ═══════════════ */
+/* Cabeçalho da aba Transações: título + 3 ações não cabem numa linha no
+   celular → as ações descem para uma linha própria, com o filtro esticado. */
+#transactions .page-header { flex-wrap: wrap; row-gap: 14px; }
+@media (max-width: 639px) {
+  #transactions .page-header-actions { flex: 1 1 100%; }
+  #transactions .page-header-actions .filter-chip { flex: 1; order: -1; height: 42px; }
+}
+@media (max-width: 479px) {
+  /* Só ícone: botões quadrados do mesmo tamanho */
+  #transactions .page-header-actions .add-new-btn,
+  #transactions .page-header-actions .tx-select-btn {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: var(--r-sm);
+  }
+}
+
 @media (min-width: 1024px) {
   .transaction-item { padding: 12px 18px; gap: 14px; }
   .transaction-item + .transaction-item::before { left: 72px; right: 18px; }

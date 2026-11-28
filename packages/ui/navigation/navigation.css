@@ -162,6 +162,9 @@
   min-width: 0;
   transition: color var(--ease), transform var(--ease);
 }
+/* Itens só do desktop (Transações, Ajustes): precisa vencer o display:flex acima,
+   senão o dock fica com 3 itens à esquerda e o "+" sai do centro. */
+.bottom-nav-item.nav-desktop-only { display: none; }
 .bottom-nav-item:active { transform: scale(0.92); }
 .nav-icon-wrap {
   width: 42px;
@@ -340,7 +343,8 @@
 @media (min-width: 1024px) {
   :root { --sidebar-w: 268px; --page-pad: 40px; --header-h: 76px; }
 
-  .nav-desktop-only { display: flex; }
+  .nav-desktop-only,
+  .bottom-nav-item.nav-desktop-only { display: flex; }
 
   .bottom-nav {
     top: 0;

@@ -33,7 +33,7 @@ try {
 }
 // ===== FIM FIREBASE MESSAGING =====
 
-const CACHE_NAME = 'wolfsource-v39';
+const CACHE_NAME = 'wolfsource-v40';
 const URLS_TO_CACHE = [
   './',
   './index.html',
